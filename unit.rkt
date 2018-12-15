@@ -3,6 +3,13 @@
 ;; TODO:
 ;; - [ ] Handle exceptions? -- This could easily be a simple user test macro.
 
+(provide test-begin
+         [struct-out test-result]
+         display-test-results
+         fail
+         define-test
+         define-test-syntax)
+
 (require (for-syntax syntax/parse)
          syntax/to-string)
 
