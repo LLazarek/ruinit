@@ -1,8 +1,5 @@
 #lang racket
 
-;; TODO:
-;; - [ ] Handle exceptions? -- This could easily be a simple user test macro.
-
 (provide test-begin
          [struct-out test-result]
          display-test-results
