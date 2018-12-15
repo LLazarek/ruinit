@@ -5,6 +5,7 @@
 ;;    I have never needed such a thing, but perhaps one day
 
 (provide test-begin
+         test-begin/short-circuit
          [struct-out test-result]
          display-test-results
          fail
@@ -41,6 +42,31 @@
            [else
             (register-test-success!)])
          (test-begin e ...)))]))
+
+(define-syntax (test-begin/short-circuit stx)
+  (syntax-parse stx
+    [(_) #'(void)]
+    [(_ ((~datum ignore) ignored-e ...)
+        e:expr ...)
+     (syntax/loc stx
+       (begin
+         ignored-e ...
+         (test-begin/short-circuit e ...)))]
+    [(_ test:expr e ...)
+     (quasisyntax/loc stx
+       (cond
+         [(match test
+            [(test-result #t msg)
+             (register-test-failure! #'test msg)
+             #f]
+            [#f
+             (register-test-failure! #'test)
+             #f]
+            [else
+             (register-test-success!)
+             #t])
+          (test-begin/short-circuit e ...)]
+         [else (void)]))]))
 
 (struct test-location (path line column))
 
@@ -207,4 +233,13 @@ HERE
   (test-begin
     (equal? 1 1)
     (ignore (define a 42))
-    (equal? a a)))
+    (equal? a a))
+
+  ;; Test short-circuiting version
+  (test-begin/short-circuit
+   (equal? 1 1)
+   (ignore (define a 42))
+   (equal? a a)
+   (equal? 1 0)
+   (equal? 2 3)
+   (error 'no-short-circuiting!)))
