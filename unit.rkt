@@ -194,4 +194,10 @@ HERE
 
     (test-result-failure? (foobar?* #t #t : [one #t] [two #f]))
     (equal? (test-result-message (foobar?* #t #t : [one #t] [two #f]))
-            "Element two in b failed!")))
+            "Element two in b failed!"))
+
+  ;; Test that test-begin ignore allows definitions
+  (test-begin
+    (equal? 1 1)
+    (ignore (define a 42))
+    (equal? a a)))
