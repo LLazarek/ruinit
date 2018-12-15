@@ -8,7 +8,9 @@
          test->
          test-<=
          test->=
-         test-within)
+         test-within
+         test-match
+         test-exn)
 
 (require "unit.rkt"
          (for-syntax syntax/parse))
@@ -46,10 +48,15 @@
     (fail "~a and ~a are not within ~a of each other"
           a b ε)))
 
-(define-test-syntax (test-match? pat x)
+(define-test-syntax (test-match pat x)
   (unless (match x [pat #t] [else #f])
     (fail "~a fails to match pattern ~a"
           x 'pat)))
+
+(define-test-syntax (test-exn exn-pred e)
+  (with-handlers ([exn-pred (λ _ #t)])
+    e
+    (fail "Didn't throw exception recognized by ~a" 'exn-pred)))
 
 (module+ test
   (test-begin
@@ -100,4 +107,17 @@
 
     (test-result-failure? (test-<= 2 1))
     (not (test-result-failure? (test-<= 1 2)))
-    (not (test-result-failure? (test-<= 1 1)))))
+    (not (test-result-failure? (test-<= 1 1)))
+
+    (test-result-failure? (test-within 5 6 0.5))
+    (test-result-failure? (test-within 0.8 1 0.1))
+    (not (test-result-failure? (test-within 5 6 1)))
+    (not (test-result-failure? (test-within 5.1 5.1002 0.001)))
+
+    (test-result-failure? (test-match (list a 2 a) '()))
+    (test-result-failure? (test-match (list a 2 a) '(2 2 1)))
+    (not (test-result-failure? (test-match (list a 2 a) '(1 2 1))))
+
+    (test-result-failure? (test-exn exn:fail? (+ 1 2)))
+    (test-result-failure? (test-exn exn:fail? (string-append "a" "b")))
+    (not (test-result-failure? (test-exn exn:fail? (string-append "a" 1))))))
