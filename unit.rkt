@@ -1,5 +1,9 @@
 #lang racket
 
+;; todos:
+;; 1. Short circuiting version of test-begin
+;;    I have never needed such a thing, but perhaps one day
+
 (provide test-begin
          [struct-out test-result]
          display-test-results
@@ -100,14 +104,20 @@ HERE
   (test-begin
     (equal? 0 0)
     (equal? 2 2)
+    (displayln "~~~~~ Expected failure ~~~~~")
     (equal? 1 (+ 5 2))
-    #f)
+    (displayln "~~~~~")
+    (displayln "~~~~~ Expected failure ~~~~~")
+    #f
+    (displayln "~~~~~"))
 
   (test-begin
     (equal? 1 1)
     (equal? 2 2)
     (equal? 1 1)
-    (test-result #t "hahaha"))
+    (displayln "~~~~~ Expected failure ~~~~~")
+    (test-result #t "hahaha")
+    (displayln "~~~~~"))
 
   (display-test-results))
 
