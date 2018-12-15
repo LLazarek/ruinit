@@ -3,7 +3,8 @@
 ;; TODO:
 ;; - [ ] Handle exceptions? -- This could easily be a simple user test macro.
 
-(require (for-syntax syntax/parse))
+(require (for-syntax syntax/parse)
+         syntax/to-string)
 
 ;; A Test is either
 ;; - (any ... -> boolean?)
@@ -22,24 +23,23 @@
          ignored-e ...
          (test-begin e ...)))]
     [(_ test:expr e ...)
-     (with-syntax ([fail-loc (test-stx->location-stx (syntax/loc stx test))])
-       (quasisyntax/loc stx
-         (begin
-           (match test
-             [(test-result #t msg)
-              (register-test-failure! fail-loc msg)]
-             [#f
-              (register-test-failure! fail-loc)]
-             [else
-              (register-test-success!)])
-           (test-begin e ...))))]))
+     (quasisyntax/loc stx
+       (begin
+         (match test
+           [(test-result #t msg)
+            (register-test-failure! #'test msg)]
+           [#f
+            (register-test-failure! #'test)]
+           [else
+            (register-test-success!)])
+         (test-begin e ...)))]))
 
 (struct test-location (path line column))
 
-(define-for-syntax (test-stx->location-stx test-stx)
-  #`(test-location #,(syntax-source test-stx)
-                   #,(syntax-line test-stx)
-                   #,(syntax-column test-stx)))
+(define (test-stx->location test-stx)
+  (test-location (syntax-source test-stx)
+                 (syntax-line test-stx)
+                 (syntax-column test-stx)))
 
 (define (basename path)
   (define-values (_1 name _2) (split-path path))
@@ -55,22 +55,24 @@
 
 (define (failure-extras->string extras)
   (if extras
-      (string-append "\nmessage:  " extras)
+      (string-append "message:  " extras "\n")
       ""))
 
 
 (define test-count 0)
 (define test-count/failed 0)
 
-(define (register-test-failure! loc [msg #f])
+(define (register-test-failure! test-stx [msg #f])
   (printf
    #<<HERE
 --------------- FAILURE ---------------
-location: ~a~a
----------------------------------------
+location: ~a
+test:     ~a
+~a---------------------------------------
 
 HERE
-   (test-location->string loc)
+   (test-location->string (test-stx->location test-stx))
+   (syntax->string #`(#,test-stx))
    (failure-extras->string msg))
   (++! test-count)
   (++! test-count/failed))
@@ -103,7 +105,8 @@ HERE
   (test-begin
     (equal? 0 0)
     (equal? 2 2)
-    (equal? 1 1))
+    (equal? 1 (+ 5 2))
+    #f)
 
   (test-begin
     (equal? 1 1)
