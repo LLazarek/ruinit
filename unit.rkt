@@ -92,15 +92,6 @@ HERE
       (format "~a of ~a tests passed." (- total failed) total)])))
 
 
-
-
-
-#;(define-syntax-rule (define-test-syntax stx)
-  (syntax-parse stx
-    [(_ id/sig:expr body:expr ...)
-     #'()]))
-
-
 (module+ test
   (test-begin
     (equal? 0 0)
@@ -115,3 +106,85 @@ HERE
     (test-result #t "hahaha"))
 
   (display-test-results))
+
+
+
+
+(require racket/stxparam)
+(define-syntax-parameter fail
+  (λ (stx)
+    (raise-syntax-error
+     'fail
+     "can only be used within define-test* bodies")))
+
+
+(define-syntax (define-test stx)
+  (syntax-parse stx
+    [(_ (name:id args:id ...) body:expr ...)
+     #'(define (name args ...)
+         (let/cc escape
+           (let ([fail-fn (λ fmt-msg
+                            (escape
+                             (test-result #t
+                                          (apply format fmt-msg))))])
+             (syntax-parameterize
+                 ([fail (make-rename-transformer #'fail-fn)])
+               body ...)
+             (test-result #f ""))))]))
+
+(define-syntax (define-test-syntax stx)
+  (syntax-parse stx
+    [(_ (name:id pat:expr ...) body ...)
+     #'(define-syntax (name s)
+         (syntax-parse s
+           [(_ pat ...)
+            #'(let/cc escape
+                (let ([fail-fn (λ fmt-msg
+                                 (escape
+                                  (test-result #t
+                                               (apply format fmt-msg))))])
+                  (syntax-parameterize
+                      ([fail (make-rename-transformer #'fail-fn)])
+                    body ...)
+                  (test-result #f "")))]))]))
+
+
+(module+ test
+  (define-test (foobar? a b)
+    (unless (equal? a (+ b 1))
+      (fail "~a and ~a don't foobar!" a b)))
+
+  (test-begin
+    (test-result-failure? (foobar? 2 5))
+    (equal? (test-result-message (foobar? 2 5))
+            "2 and 5 don't foobar!")
+
+    (not (test-result-failure? (foobar? 2 1)))
+    (equal? (test-result-message (foobar? 2 1))
+            ""))
+
+
+  (define-test-syntax (foobar?* a ... (~datum :)
+                                [label b] ...)
+    (begin
+      (unless (or a ...)
+        (fail "At least one a has to succeed!"))
+      (for ([el (in-list (list b ...))]
+            [l  (in-list '(label ...))])
+        (unless el
+          (fail "Element ~a in b failed!" l)))))
+
+  (test-begin
+    (test-result-failure? (foobar?* #f : [one #t] [two #t]))
+    (equal? (test-result-message (foobar?* #f : [one #t] [two #t]))
+            "At least one a has to succeed!")
+
+    (not (test-result-failure? (foobar?* #t : [one #t] [two #t])))
+
+    (test-result-failure? (foobar?* #t #t : [one #f] [two #t]))
+    (equal? (test-result-message (foobar?* #t #t : [one #f] [two #t]))
+            "Element one in b failed!")
+
+    (test-result-failure? (foobar?* #t #t : [one #t] [two #f]))
+    (equal? (test-result-message (foobar?* #t #t : [one #t] [two #f]))
+            "Element two in b failed!")))
