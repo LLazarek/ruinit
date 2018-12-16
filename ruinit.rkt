@@ -1,7 +1,6 @@
 #lang racket
 
 (provide test-begin
-         test-begin/short-circuit
          [struct-out test-result]
          display-test-results
          fail
@@ -18,52 +17,48 @@
 
 (struct test-result (failure? message))
 
-;; run-tests: Test ... -> void?
+;; test-begin: Test ... -> void?
+;; Optionally provide keyword `#:short-circuit` to cause tests
+;; in this block to short circuit upon failure.
 (define-syntax (test-begin stx)
   (syntax-parse stx
-    [(_) #'(void)]
-    [(_ ((~datum ignore) ignored-e ...)
+    [(_ (~optional (~and (~datum #:short-circuit)
+                         short-kw)))
+     #'(void)]
+    [(_ (~optional (~and (~datum #:short-circuit)
+                         short-kw))
+        ((~datum ignore) ignored-e ...)
         e:expr ...)
      (syntax/loc stx
        (begin
          ignored-e ...
-         (test-begin e ...)))]
-    [(_ test:expr e ...)
-     (quasisyntax/loc stx
-       (begin
+         (test-begin (~? short-kw) e ...)))]
+    [(_ (~optional (~and (~datum #:short-circuit)
+                         short-kw))
+        test:expr e ...)
+     (define test-check
+       (quasisyntax/loc stx
          (match test
            [(test-result #t msg)
-            (register-test-failure! #'test msg)]
+            (register-test-failure! #'test msg)
+            #f]
            [#f
-            (register-test-failure! #'test)]
+            (register-test-failure! #'test)
+            #f]
            [else
-            (register-test-success!)])
-         (test-begin e ...)))]))
+            (register-test-success!)
+            #t])))
+     (if (attribute short-kw)
+         (quasisyntax/loc stx
+           (cond [#,test-check
+                  (test-begin short-kw e ...)]
+                 [else (void)]))
+         (quasisyntax/loc stx
+           (begin
+             (void #,test-check)
+             (test-begin e ...))))]))
 
-(define-syntax (test-begin/short-circuit stx)
-  (syntax-parse stx
-    [(_) #'(void)]
-    [(_ ((~datum ignore) ignored-e ...)
-        e:expr ...)
-     (syntax/loc stx
-       (begin
-         ignored-e ...
-         (test-begin/short-circuit e ...)))]
-    [(_ test:expr e ...)
-     (quasisyntax/loc stx
-       (cond
-         [(match test
-            [(test-result #t msg)
-             (register-test-failure! #'test msg)
-             #f]
-            [#f
-             (register-test-failure! #'test)
-             #f]
-            [else
-             (register-test-success!)
-             #t])
-          (test-begin/short-circuit e ...)]
-         [else (void)]))]))
+
 
 (struct test-location (path line column))
 
@@ -291,10 +286,11 @@ location: ruinit.rkt:[0-9]+:[0-9]+
 test:     \\(equal\\? 1 0\\)
 ---------------------------------------
 "
-   (test-begin/short-circuit
-    (equal? 1 1)
-    (ignore (define a 42))
-    (equal? a a)
-    (equal? 1 0)
-    (equal? 2 3)
-    (error 'no-short-circuiting!))))
+   (test-begin
+     #:short-circuit
+     (equal? 1 1)
+     (ignore (define a 42))
+     (equal? a a)
+     (equal? 1 0)
+     (equal? 2 3)
+     (error 'no-short-circuiting!))))
