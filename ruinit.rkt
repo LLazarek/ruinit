@@ -6,7 +6,8 @@
          display-test-results
          fail
          define-test
-         define-test-syntax)
+         define-test-syntax
+         max-code-display-length)
 
 (require (for-syntax syntax/parse)
          syntax/to-string)
@@ -81,17 +82,19 @@
   [{(test-location path line col)}
    (format "~a:~a:~a" (basename path) line col)])
 
+(define max-code-display-length (make-parameter 70))
 (define (abbreviate-code str)
   (define len (string-length str))
-  (if (> len 70)
-      (string-append (substring str 0 67) "...")
+  (define max (max-code-display-length))
+  (if (> len max)
+      (string-append (substring str 0 (- max 3)) "...")
       str))
 
 (define-syntax-rule (++! v)
   (set! v (add1 v)))
 
 
-(define (failure-extras->string extras)
+(define (failure-msg->string extras)
   (if extras
       (string-append "message:  " extras "\n")
       ""))
@@ -111,7 +114,7 @@ test:     ~a
 HERE
    (test-location->string (test-stx->location test-stx))
    (abbreviate-code (syntax->string #`(#,test-stx)))
-   (failure-extras->string msg))
+   (failure-msg->string msg))
   (++! test-count)
   (++! test-count/failed))
 
