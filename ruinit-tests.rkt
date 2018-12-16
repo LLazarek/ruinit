@@ -12,7 +12,7 @@
          test-match
          test-exn)
 
-(require "unit.rkt"
+(require "ruinit.rkt"
          (for-syntax syntax/parse))
 
 (define-syntax (define-binary-tests stx)
