@@ -1,9 +1,5 @@
 #lang racket
 
-;; todos:
-;; 1. Short circuiting version of test-begin
-;;    I have never needed such a thing, but perhaps one day
-
 (provide test-begin
          test-begin/short-circuit
          [struct-out test-result]
@@ -76,12 +72,20 @@
                  (syntax-column test-stx)))
 
 (define (basename path)
-  (define-values (_1 name _2) (split-path path))
-  name)
+  (if (symbol? path) ;; e.g. 'stdin
+      path
+      (let-values ([(_1 name _2) (split-path path)])
+        name)))
 
 (define/match (test-location->string loc)
   [{(test-location path line col)}
    (format "~a:~a:~a" (basename path) line col)])
+
+(define (abbreviate-code str)
+  (define len (string-length str))
+  (if (> len 70)
+      (string-append (substring str 0 67) "...")
+      str))
 
 (define-syntax-rule (++! v)
   (set! v (add1 v)))
@@ -106,7 +110,7 @@ test:     ~a
 
 HERE
    (test-location->string (test-stx->location test-stx))
-   (syntax->string #`(#,test-stx))
+   (abbreviate-code (syntax->string #`(#,test-stx)))
    (failure-extras->string msg))
   (++! test-count)
   (++! test-count/failed))
@@ -127,25 +131,61 @@ HERE
 
 
 (module+ test
-  (test-begin
-    (equal? 0 0)
-    (equal? 2 2)
-    (displayln "~~~~~ Expected failure ~~~~~")
-    (equal? 1 (+ 5 2))
-    (displayln "~~~~~")
-    (displayln "~~~~~ Expected failure ~~~~~")
-    #f
-    (displayln "~~~~~"))
+  (define-syntax-rule (assert-output-match pat e)
+    (let ([output (with-output-to-string (λ _ e))])
+      (unless (regexp-match? pat output)
+        (error (format "Output ~v does not match pattern ~v."
+                       output pat)))))
+
+  (assert-output-match "
+Every test \\(0\\) failed.
+"
+                       (display-test-results))
 
   (test-begin
-    (equal? 1 1)
-    (equal? 2 2)
-    (equal? 1 1)
-    (displayln "~~~~~ Expected failure ~~~~~")
-    (test-result #t "hahaha")
-    (displayln "~~~~~"))
+    (equal? 1 1))
+  (assert-output-match "
+All 1 tests passed.
+"
+                       (display-test-results))
 
-  (display-test-results))
+
+  (assert-output-match
+   #rx"--------------- FAILURE ---------------
+location: ruinit.rkt:[0-9]+:[0-9]+
+test:     \\(equal\\? 1 \\(\\+ 5 2\\)\\)
+---------------------------------------
+--------------- FAILURE ---------------
+location: ruinit.rkt:[0-9]+:[0-9]+
+test:     #f
+---------------------------------------
+"
+   (test-begin
+     (equal? 0 0)
+     (equal? 2 2)
+     (equal? 1 (+ 5 2))
+     #f))
+  (assert-output-match "
+3 of 5 tests passed.
+"
+                       (display-test-results))
+
+  (assert-output-match
+   #rx"--------------- FAILURE ---------------
+location: ruinit.rkt:[0-9]+:[0-9]+
+test:     \\(test-result #t \"hahaha\"\\)
+message:  hahaha
+---------------------------------------
+"
+   (test-begin
+     (equal? 1 1)
+     (equal? 2 2)
+     (equal? 1 1)
+     (test-result #t "hahaha")))
+  (assert-output-match "
+6 of 9 tests passed.
+"
+                       (display-test-results)))
 
 
 
@@ -190,11 +230,17 @@ HERE
 
 
 (module+ test
+  (define-syntax-rule (assert-all e ...)
+    (begin
+      (unless e
+        (error 'e))
+      ...))
+
   (define-test (foobar? a b)
     (unless (equal? a (+ b 1))
       (fail "~a and ~a don't foobar!" a b)))
 
-  (test-begin
+  (assert-all
     (test-result-failure? (foobar? 2 5))
     (equal? (test-result-message (foobar? 2 5))
             "2 and 5 don't foobar!")
@@ -214,7 +260,7 @@ HERE
         (unless el
           (fail "Element ~a in b failed!" l)))))
 
-  (test-begin
+  (assert-all
     (test-result-failure? (foobar?* #f : [one #t] [two #t]))
     (equal? (test-result-message (foobar?* #f : [one #t] [two #t]))
             "At least one a has to succeed!")
@@ -236,10 +282,16 @@ HERE
     (equal? a a))
 
   ;; Test short-circuiting version
-  (test-begin/short-circuit
-   (equal? 1 1)
-   (ignore (define a 42))
-   (equal? a a)
-   (equal? 1 0)
-   (equal? 2 3)
-   (error 'no-short-circuiting!)))
+  (assert-output-match
+   #rx"--------------- FAILURE ---------------
+location: ruinit.rkt:[0-9]+:[0-9]+
+test:     \\(equal\\? 1 0\\)
+---------------------------------------
+"
+   (test-begin/short-circuit
+    (equal? 1 1)
+    (ignore (define a 42))
+    (equal? a a)
+    (equal? 1 0)
+    (equal? 2 3)
+    (error 'no-short-circuiting!))))
