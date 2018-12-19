@@ -7,10 +7,15 @@
          define-test
          define-test-syntax
          define-simple-test
-         max-code-display-length)
+         max-code-display-length
+         use-rackunit-backend)
 
 (require (for-syntax syntax/parse)
-         syntax/to-string)
+         syntax/to-string
+         rackunit
+         rackunit/log)
+
+(define use-rackunit-backend (make-parameter #f))
 
 ;; A Test is either
 ;; - (any ... -> boolean?)
@@ -100,33 +105,59 @@
 (define test-count/failed 0)
 
 (define (register-test-failure! test-stx [msg #f])
-  (printf
-   #<<HERE
+  (cond [(use-rackunit-backend)
+         (rackunit/fail-test! test-stx msg)]
+        [else (printf
+               #<<HERE
 --------------- FAILURE ---------------
 location: ~a
 test:     ~a
 ~a---------------------------------------
 
 HERE
-   (test-location->string (test-stx->location test-stx))
-   (abbreviate-code (syntax->string #`(#,test-stx)))
-   (failure-msg->string msg))
-  (++! test-count)
-  (++! test-count/failed))
+               (test-location->string (test-stx->location test-stx))
+               (abbreviate-code (syntax->string #`(#,test-stx)))
+               (failure-msg->string msg))
+              (++! test-count)
+              (++! test-count/failed)]))
 
 (define (register-test-success!)
-  (++! test-count))
+  (if (use-rackunit-backend)
+      (rackunit/succeed-test!)
+      (++! test-count)))
 
 (define (display-test-results)
-  (newline)
-  (displayln
-   (match* (test-count test-count/failed)
-     [(n n)
-      (format "Every test (~a) failed." n)]
-     [(n 0)
-      (format "All ~a tests passed." n)]
-     [(total failed)
-      (format "~a of ~a tests passed." (- total failed) total)])))
+  (cond [(use-rackunit-backend)
+         (void (test-log #:display? #t))]
+        [else
+         (newline)
+         (displayln
+          (match* (test-count test-count/failed)
+            [(n n)
+             (format "Every test (~a) failed." n)]
+            [(n 0)
+             (format "All ~a tests passed." n)]
+            [(total failed)
+             (format "~a of ~a tests passed." (- total failed) total)]))]))
+
+(define (rackunit/fail-test! test-stx [msg #f])
+  ((current-check-around)
+   (λ _
+     (with-check-info (['location (check-info-value
+                                   (make-check-location
+                                    (list
+                                     (syntax-source test-stx)
+                                     (syntax-line test-stx)
+                                     (syntax-column test-stx)
+                                     #f
+                                     #f)))]
+                       ['test (string->symbol (abbreviate-code (syntax->string #`(#,test-stx))))])
+       (fail-check (failure-msg->string msg))))))
+
+(define (rackunit/succeed-test!)
+  ((current-check-around)
+   (λ _ (void))))
+
 
 
 (module+ test
