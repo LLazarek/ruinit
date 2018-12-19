@@ -230,11 +230,15 @@ message:  hahaha
 
 (define-syntax (define-simple-test stx)
   (syntax-parse stx
-    [(_ head:expr (~datum #:fail-message) msg:expr
+    [(_ (name:id arg:id ...)
+        (~optional (~seq (~datum #:fail-message) msg:expr))
         body:expr ...)
-     #'(define-test head
+     #'(define-test (name arg ...)
          (unless (begin body ...)
-           (fail msg)))]))
+           (fail (~? msg
+                     (string-join (list (~a 'name)
+                                        "fails with"
+                                        (~v arg) ...))))))]))
 
 
 (module+ test
@@ -294,6 +298,17 @@ message:  hahaha
 
     (not (test-result-failure? (foobar?/simple 2 2 3)))
     (equal? (test-result-message (foobar?/simple 2 2 3))
+            ""))
+
+  (define-simple-test (foobar?/simple* a b c)
+    (= a b (sub1 c)))
+  (assert-all
+    (test-result-failure? (foobar?/simple* 2 5 (+ 3 3)))
+    (equal? (test-result-message (foobar?/simple* 2 5 6))
+            "foobar?/simple* fails with 2 5 6")
+
+    (not (test-result-failure? (foobar?/simple* 2 2 3)))
+    (equal? (test-result-message (foobar?/simple* 2 2 3))
             ""))
 
 
