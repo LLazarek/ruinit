@@ -6,6 +6,7 @@
          fail
          define-test
          define-test-syntax
+         define-simple-test
          max-code-display-length)
 
 (require (for-syntax syntax/parse)
@@ -227,6 +228,15 @@ message:  hahaha
                   (test-result #f "")))]))]))
 
 
+(define-syntax (define-simple-test stx)
+  (syntax-parse stx
+    [(_ head:expr (~datum #:fail-message) msg:expr
+        body:expr ...)
+     #'(define-test head
+         (unless (begin body ...)
+           (fail msg)))]))
+
+
 (module+ test
   (define-syntax-rule (assert-all e ...)
     (begin
@@ -272,6 +282,20 @@ message:  hahaha
     (test-result-failure? (foobar?* #t #t : [one #t] [two #f]))
     (equal? (test-result-message (foobar?* #t #t : [one #t] [two #f]))
             "Element two in b failed!"))
+
+
+  (define-simple-test (foobar?/simple a b c)
+    #:fail-message (format "~a, ~a, ~a don't foobar!" a b c)
+    (= a b (sub1 c)))
+  (assert-all
+    (test-result-failure? (foobar?/simple 2 5 6))
+    (equal? (test-result-message (foobar?/simple 2 5 6))
+            "2, 5, 6 don't foobar!")
+
+    (not (test-result-failure? (foobar?/simple 2 2 3)))
+    (equal? (test-result-message (foobar?/simple 2 2 3))
+            ""))
+
 
   ;; Test that test-begin ignore allows definitions
   (test-begin
