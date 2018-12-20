@@ -2,13 +2,16 @@
 
 (provide test-begin
          [struct-out test-result]
+         test-result-failure?
          display-test-results
          fail
          define-test
          define-test-syntax
          define-simple-test
          max-code-display-length
-         use-rackunit-backend)
+         use-rackunit-backend
+         ;; To support define-test-syntax
+         (for-syntax (all-from-out syntax/parse)))
 
 (require (for-syntax syntax/parse)
          syntax/to-string
@@ -21,7 +24,8 @@
 ;; - (any ... -> boolean?)
 ;; - (any ... -> test-result?)
 
-(struct test-result (failure? message))
+(struct test-result (success? message))
+(define test-result-failure? (negate test-result-success?))
 
 ;; test-begin: Test ... -> void?
 ;; Optionally provide keyword `#:short-circuit` to cause tests
@@ -45,7 +49,7 @@
      (define test-check
        (quasisyntax/loc stx
          (match test
-           [(test-result #t msg)
+           [(test-result #f msg)
             (register-test-failure! #'test msg)
             #f]
            [#f
@@ -203,7 +207,7 @@ test:     #f
   (assert-output-match
    #rx"--------------- FAILURE ---------------
 location: ruinit.rkt:[0-9]+:[0-9]+
-test:     \\(test-result #t \"hahaha\"\\)
+test:     \\(test-result #f \"hahaha\"\\)
 message:  hahaha
 ---------------------------------------
 "
@@ -211,7 +215,7 @@ message:  hahaha
      (equal? 1 1)
      (equal? 2 2)
      (equal? 1 1)
-     (test-result #t "hahaha")))
+     (test-result #f "hahaha")))
   (assert-output-match "
 6 of 9 tests passed.
 "
@@ -235,12 +239,12 @@ message:  hahaha
          (let/cc escape
            (let ([fail-fn (λ fmt-msg
                             (escape
-                             (test-result #t
+                             (test-result #f
                                           (apply format fmt-msg))))])
              (syntax-parameterize
                  ([fail (make-rename-transformer #'fail-fn)])
                body ...)
-             (test-result #f ""))))]))
+             (test-result #t ""))))]))
 
 (define-syntax (define-test-syntax stx)
   (syntax-parse stx
@@ -251,12 +255,12 @@ message:  hahaha
             #'(let/cc escape
                 (let ([fail-fn (λ fmt-msg
                                  (escape
-                                  (test-result #t
+                                  (test-result #f
                                                (apply format fmt-msg))))])
                   (syntax-parameterize
                       ([fail (make-rename-transformer #'fail-fn)])
                     body ...)
-                  (test-result #f "")))]))]))
+                  (test-result #t "")))]))]))
 
 
 (define-syntax (define-simple-test stx)
