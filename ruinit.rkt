@@ -1,13 +1,15 @@
 #lang racket
 
 (provide test-begin
+         module+test-begin
          [struct-out test-result]
-         test-result-failure?
          display-test-results
          fail
          define-test
          define-test-syntax
          define-simple-test
+         test-success?
+         test-fail?
          max-code-display-length
          use-rackunit-backend
          ;; To support define-test-syntax
@@ -25,7 +27,18 @@
 ;; - (any ... -> test-result?)
 
 (struct test-result (success? message))
-(define test-result-failure? (negate test-result-success?))
+(define/match (test-result/failure? t)
+  [{(test-result #f _)} #t]
+  [{_} #f])
+
+(define/match (test-success? t)
+  [{(test-result success? _)}
+   success?]
+  [{other-result} other-result])
+
+(define test-fail? (negate test-success?))
+
+;; lltodo: change the tests below to use test-success? and test-fail?
 
 ;; test-begin: Test ... -> void?
 ;; Optionally provide keyword `#:short-circuit` to cause tests
@@ -68,6 +81,10 @@
              (void #,test-check)
              (test-begin e ...))))]))
 
+(define-syntax-rule (module+test-begin body ...)
+  (module+ test
+    (test-begin
+      body ...)))
 
 
 (struct test-location (path line column))
@@ -229,7 +246,7 @@ message:  hahaha
   (λ (stx)
     (raise-syntax-error
      'fail
-     "can only be used within define-test* bodies")))
+     "can only be used within define-test* body")))
 
 
 (define-syntax (define-test stx)
@@ -243,8 +260,10 @@ message:  hahaha
                                           (apply format fmt-msg))))])
              (syntax-parameterize
                  ([fail (make-rename-transformer #'fail-fn)])
-               body ...)
-             (test-result #t ""))))]))
+               ;; Tests return whatever the body evals to
+               ;; in order to allow them to act like simple predicates
+               ;; by returning #f to indicate failure.
+               body ...))))]))
 
 (define-syntax (define-test-syntax stx)
   (syntax-parse stx
@@ -259,8 +278,8 @@ message:  hahaha
                                                (apply format fmt-msg))))])
                   (syntax-parameterize
                       ([fail (make-rename-transformer #'fail-fn)])
-                    body ...)
-                  (test-result #t "")))]))]))
+                    ;; See above note about test return value
+                    body ...)))]))]))
 
 
 (define-syntax (define-simple-test stx)
@@ -288,13 +307,11 @@ message:  hahaha
       (fail "~a and ~a don't foobar!" a b)))
 
   (assert-all
-    (test-result-failure? (foobar? 2 5))
+    (test-result/failure? (foobar? 2 5))
     (equal? (test-result-message (foobar? 2 5))
             "2 and 5 don't foobar!")
 
-    (not (test-result-failure? (foobar? 2 1)))
-    (equal? (test-result-message (foobar? 2 1))
-            ""))
+    (test-success? (foobar? 2 1)))
 
 
   (define-test-syntax (foobar?* a ... (~datum :)
@@ -308,17 +325,17 @@ message:  hahaha
           (fail "Element ~a in b failed!" l)))))
 
   (assert-all
-    (test-result-failure? (foobar?* #f : [one #t] [two #t]))
+    (test-result/failure? (foobar?* #f : [one #t] [two #t]))
     (equal? (test-result-message (foobar?* #f : [one #t] [two #t]))
             "At least one a has to succeed!")
 
-    (not (test-result-failure? (foobar?* #t : [one #t] [two #t])))
+    (test-success? (foobar?* #t : [one #t] [two #t]))
 
-    (test-result-failure? (foobar?* #t #t : [one #f] [two #t]))
+    (test-result/failure? (foobar?* #t #t : [one #f] [two #t]))
     (equal? (test-result-message (foobar?* #t #t : [one #f] [two #t]))
             "Element one in b failed!")
 
-    (test-result-failure? (foobar?* #t #t : [one #t] [two #f]))
+    (test-result/failure? (foobar?* #t #t : [one #t] [two #f]))
     (equal? (test-result-message (foobar?* #t #t : [one #t] [two #f]))
             "Element two in b failed!"))
 
@@ -327,24 +344,20 @@ message:  hahaha
     #:fail-message (format "~a, ~a, ~a don't foobar!" a b c)
     (= a b (sub1 c)))
   (assert-all
-    (test-result-failure? (foobar?/simple 2 5 6))
+    (test-result/failure? (foobar?/simple 2 5 6))
     (equal? (test-result-message (foobar?/simple 2 5 6))
             "2, 5, 6 don't foobar!")
 
-    (not (test-result-failure? (foobar?/simple 2 2 3)))
-    (equal? (test-result-message (foobar?/simple 2 2 3))
-            ""))
+    (test-success? (foobar?/simple 2 2 3)))
 
   (define-simple-test (foobar?/simple* a b c)
     (= a b (sub1 c)))
   (assert-all
-    (test-result-failure? (foobar?/simple* 2 5 (+ 3 3)))
+    (test-result/failure? (foobar?/simple* 2 5 (+ 3 3)))
     (equal? (test-result-message (foobar?/simple* 2 5 6))
             "foobar?/simple* fails with 2 5 6")
 
-    (not (test-result-failure? (foobar?/simple* 2 2 3)))
-    (equal? (test-result-message (foobar?/simple* 2 2 3))
-            ""))
+    (test-success? (foobar?/simple* 2 2 3)))
 
 
   ;; Test that test-begin ignore allows definitions

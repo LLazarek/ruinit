@@ -1,8 +1,6 @@
 #lang racket
 
-(provide test-success?
-         test-fail?
-         test/and
+(provide test/and
          test/or
          test/if
          test/when
@@ -14,17 +12,10 @@
                   check-false
                   check-equal?))
 
-(define/match (test-success? t)
-  [{(test-result success? _)}
-   success?]
-  [{other-result} other-result])
-
-(define test-fail? (negate test-success?))
-
 (define-syntax-rule (test/and t ...)
-  (test-result (and (test-success? t) ...) ""))
+  (test-result (and (test-success? t) ...) #f))
 (define-syntax-rule (test/or t ...)
-  (test-result (or (test-success? t) ...) ""))
+  (test-result (or (test-success? t) ...) #f))
 (define-syntax-rule (test/if cond-t tt ff)
   (if (test-success? cond-t) tt ff))
 (define-syntax-rule (test/when cond-t tt)
