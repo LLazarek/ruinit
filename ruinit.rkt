@@ -267,49 +267,37 @@ message:  hahaha
      "can only be used within define-test* body")))
 
 
+(define-for-syntax (wrap-with-test-definer-env test-body-stx)
+  #`(let/cc escape
+      (let* ([make-result-fn
+              (λ (outcome)
+                (λ fmt-msg
+                  (escape
+                   (test-result outcome
+                                (apply format fmt-msg)))))]
+             [fail-fn (make-result-fn #f)]
+             [succeed-fn (make-result-fn #t)])
+        (syntax-parameterize
+            ([fail (make-rename-transformer #'fail-fn)]
+             [succeed (make-rename-transformer #'succeed-fn)])
+          ;; Tests return whatever the body evals to
+          ;; in order to allow them to act like simple predicates
+          ;; by returning #t/#f to indicate outcome.
+          #,test-body-stx))))
+
 (define-syntax (define-test stx)
   (syntax-parse stx
     [(_ (name:id args:id ...) body:expr ...)
-     #'(define (name args ...)
-         (let/cc escape
-           (let* ([make-result-fn
-                   (λ (outcome)
-                     (λ fmt-msg
-                       (escape
-                        (test-result outcome
-                                     (apply format fmt-msg)))))]
-                  [fail-fn (make-result-fn #f)]
-                  [succeed-fn (make-result-fn #t)])
-             (syntax-parameterize
-                 ([fail (make-rename-transformer #'fail-fn)]
-                  [succeed (make-rename-transformer #'succeed-fn)])
-               ;; Tests return whatever the body evals to
-               ;; in order to allow them to act like simple predicates
-               ;; by returning #t/#f to indicate outcome.
-               body ...))))]))
+     #`(define (name args ...)
+         #,(wrap-with-test-definer-env #'(begin body ...)))]))
 
 (define-syntax (define-test-syntax stx)
   (syntax-parse stx
     [(_ (name:id pat:expr ...) body ...)
-     #'(define-syntax (name s)
+     #`(define-syntax (name s)
          (syntax-parse s
            [(_ pat ...)
-            #'(let/cc escape
-                (let* ([make-result-fn
-                        (λ (outcome)
-                          (λ fmt-msg
-                            (escape
-                             (test-result outcome
-                                          (apply format fmt-msg)))))]
-                       [fail-fn (make-result-fn #f)]
-                       [succeed-fn (make-result-fn #t)])
-                  (syntax-parameterize
-                      ([fail (make-rename-transformer #'fail-fn)]
-                       [succeed (make-rename-transformer #'succeed-fn)])
-                    ;; Tests return whatever the body evals to
-                    ;; in order to allow them to act like simple predicates
-                    ;; by returning #t/#f to indicate outcome.
-                    body ...)))]))]))
+            #'#,(wrap-with-test-definer-env #'(begin body ...))]))]))
 
 
 (define-syntax (define-simple-test stx)
