@@ -1,6 +1,7 @@
 #lang racket
 
 (provide test/and
+         test/and/message
          test/or
          test/if
          test/when
@@ -21,6 +22,20 @@
          (if (test-success? res)
              (test/and t-rest ...)
              res)))]
+    [(_)
+     ;; lltodo: may want to do some kind of message aggregation here
+     ;; instead of a fairly useless generic message.
+     ;; Note sure how useful it would be.
+     (syntax/loc stx
+       (test-success "all ands passed"))]))
+(define-syntax (test/and/message stx)
+  (syntax-parse stx
+    [(_ [t msg] t-rest ...)
+     (syntax/loc stx
+       (let ([res t])
+         (if (test-success? res)
+             (test/and/message t-rest ...)
+             (test-fail "~a: ~a" msg (test-message res)))))]
     [(_)
      ;; lltodo: may want to do some kind of message aggregation here
      ;; instead of a fairly useless generic message.
@@ -64,6 +79,18 @@
                 #f)
   (check-equal? (test-message (test/and #t (test-fail "foobar")))
                 "foobar")
+
+  (check-true (test-success? (test/and/message)))
+  (check-true (test-fail? (test/and/message [#f "blah"])))
+  (check-equal? (test-message (test/and/message [#f "blah"]))
+                "blah: #f")
+  (check-true (test-fail? (test/and/message [#t "a"]
+                                            [(test-fail "foo") "bar"]
+                                            [#t "b"])))
+  (check-equal? (test-message (test/and/message [#t "a"]
+                                                [(test-fail "foo") "bar"]
+                                                [#t "b"]))
+                "bar: foo")
 
   (check-true (test-fail? (test/or)))
   (check-true (test-fail? (test/or #f)))
