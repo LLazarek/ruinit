@@ -50,14 +50,14 @@
           a b ε)))
 
 (define-test-syntax (test-match pat x)
-  (unless (match x [pat #t] [else #f])
-    (fail "~a fails to match pattern ~a"
-          x 'pat)))
+  #'(unless (match x [pat #t] [else #f])
+      (fail "~a fails to match pattern ~a"
+            x 'pat)))
 
 (define-test-syntax (test-exn exn-pred e)
-  (with-handlers ([exn-pred (λ _ #t)])
-    e
-    (fail "Didn't throw exception recognized by ~a" 'exn-pred)))
+  #'(with-handlers ([exn-pred (λ _ #t)])
+      e
+      (fail "Didn't throw exception recognized by ~a" 'exn-pred)))
 
 (module+ test
   (test-begin
