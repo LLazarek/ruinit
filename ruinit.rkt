@@ -290,8 +290,8 @@ message:  hahaha
 
 (define-syntax (define-test stx)
   (syntax-parse stx
-    [(_ (name:id args:id ...) body:expr ...)
-     #'(define (name args ...)
+    [(_ (name:id . args) body:expr ...)
+     #'(define (name . args)
          (let/cc escape
            (let* ([make-result-fn
                    (λ (outcome)
