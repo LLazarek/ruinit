@@ -55,7 +55,10 @@
             x 'pat)))
 
 (define-test-syntax (test-exn exn-pred e)
-  #'(with-handlers ([exn-pred (λ _ #t)])
+  #'(with-handlers ([exn-pred (λ _ #t)]
+                    [exn? (λ (unrecognized)
+                            (fail "Threw an unrecognized exception: ~v"
+                                  unrecognized))])
       e
       (fail "Didn't throw exception recognized by ~a" 'exn-pred)))
 
@@ -121,4 +124,13 @@
 
     (test-fail? (test-exn exn:fail? (+ 1 2)))
     (test-fail? (test-exn exn:fail? (string-append "a" "b")))
-    (test-success? (test-exn exn:fail? (string-append "a" 1)))))
+    (string-prefix? (test-message
+                     (test-exn exn:fail? (string-append "a" "b")))
+                    "Didn't throw exception recognized by")
+    (test-success? (test-exn exn:fail? (string-append "a" 1)))
+    (test-fail? (test-exn exn:fail:contract:divide-by-zero?
+                          (string-append "a" 1)))
+    (string-prefix? (test-message
+                     (test-exn exn:fail:contract:divide-by-zero?
+                               (string-append "a" 1)))
+                    "Threw an unrecognized exception:")))
