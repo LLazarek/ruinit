@@ -339,11 +339,11 @@ message:  hahaha
 (define-syntax (define-simple-test stx)
   (syntax-parse stx
     [(_ (name:id arg:id ...)
-        (~optional (~seq (~datum #:succeed-message) succeed-msg:expr))
+        (~optional (~seq (~datum #:success-message) succeed-msg:expr))
         (~optional (~seq (~datum #:fail-message) fail-msg:expr))
         body:expr ...)
      #'(define-test (name arg ...)
-         (if (begin body ...)
+         (if (test-success? (begin body ...))
              (succeed (~? succeed-msg
                           (string-join (list (~a 'name)
                                              "succeeds with"
@@ -449,7 +449,7 @@ message:  hahaha
             "foobar?/simple* succeeds with 2 2 3"))
 
   (define-simple-test (foobar?/simple** a b c)
-    #:succeed-message "SUCCESS"
+    #:success-message "SUCCESS"
     #:fail-message (format "~a, ~a, ~a don't foobar!" a b c)
     (= a b (sub1 c)))
   (assert-all
