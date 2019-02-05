@@ -2,13 +2,13 @@
 
 (provide test-begin
          module+test-begin
-         [struct-out test-result]
          display-test-results
          fail
          succeed
          define-test
          define-test-syntax
          define-simple-test
+         test-result?
          test-success?
          test-fail?
          test-success
