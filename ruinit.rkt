@@ -36,10 +36,13 @@
   [{(test-result #f _)} #t]
   [{_} #f])
 
+(define (truthy->bool v) (if v #t #f))
+
 (define/match (test-success? t)
   [{(test-result success? _)}
-   success?]
-  [{other-result} other-result])
+   (truthy->bool success?)]
+  [{other-result}
+   (truthy->bool other-result)])
 
 (define test-fail? (negate test-success?))
 
