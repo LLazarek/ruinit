@@ -6,7 +6,9 @@
          test/if
          test/when
          test/unless
-         test/not)
+         test/not
+         fail-when
+         fail-unless)
 
 (require "ruinit.rkt"
          (only-in rackunit
@@ -66,6 +68,17 @@
     (if (test-success? res)
         (test-fail msg+not)
         (test-success msg+not))))
+
+;; These combinators allow short-circuiting failure based on another
+;; test that automatically propogates the failure message
+(define-syntax-rule (fail-when res)
+  (let ([result res])
+    (test/when result
+      (fail (test-message result)))))
+(define-syntax-rule (fail-unless res)
+  (let ([result res])
+    (test/unless result
+      (fail (test-message result)))))
 
 (module+ test
   (check-true (test-success? (test/and)))
@@ -130,4 +143,28 @@
   (check-equal? (test-message (test/not (test-success "foobar")))
                 "test/not: foobar")
   (check-equal? (test-message (test/not (test-fail "foobar")))
-                "test/not: foobar"))
+                "test/not: foobar")
+
+  (define-test (test-fail-unless x)
+    (fail-unless x))
+  (check-true (test-success? (test-fail-unless #t)))
+  (check-true (test-fail? (test-fail-unless #f)))
+  (check-true (test-success? (test-fail-unless
+                              (test-success "abc went wrong"))))
+  (check-true (test-fail? (test-fail-unless
+                           (test-fail "abc went wrong"))))
+  (check-equal? (test-message (test-fail-unless
+                               (test-fail "abc went wrong")))
+                "abc went wrong")
+
+  (define-test (test-fail-when x)
+    (fail-when x))
+  (check-true (test-fail? (test-fail-when #t)))
+  (check-true (test-success? (test-fail-when #f)))
+  (check-true (test-success? (test-fail-when
+                              (test-fail "abc went wrong"))))
+  (check-true (test-fail? (test-fail-when
+                           (test-success "abc went right"))))
+  (check-equal? (test-message (test-fail-when
+                               (test-success "abc went right")))
+                "abc went right"))

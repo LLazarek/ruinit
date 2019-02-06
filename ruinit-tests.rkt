@@ -91,7 +91,7 @@
     (test-fail? (test-eq? (expt 2 100) (expt 2 100)))
     (test-fail? (test-eq? 2 2.0))
     (test-success? (let ([v (mcons 1 2)])
-                                (test-eq? v v)))
+                     (test-eq? v v)))
     (test-fail? (test-eq? (mcons 1 2) (mcons 1 2)))
     (test-fail? (test-eq? (integer->char 955) (integer->char 955)))
     (test-fail? (test-eq? (make-string 3 #\z) (make-string 3 #\z)))
