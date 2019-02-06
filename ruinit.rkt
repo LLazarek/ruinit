@@ -301,7 +301,10 @@ message:  hahaha
                      (λ fmt-msg
                        (escape
                         (test-result outcome
-                                     (apply format fmt-msg)))))]
+                                     (if (or (empty? fmt-msg)
+                                             (equal? fmt-msg '(#f)))
+                                         #f
+                                         (apply format fmt-msg))))))]
                   [fail-fn (make-result-fn #f)]
                   [succeed-fn (make-result-fn #t)])
              (syntax-parameterize
@@ -326,7 +329,10 @@ message:  hahaha
                           (λ fmt-msg
                             (escape
                              (test-result outcome
-                                          (apply format fmt-msg)))))]
+                                          (if (or (empty? fmt-msg)
+                                                  (equal? fmt-msg '(#f)))
+                                              #f
+                                              (apply format fmt-msg))))))]
                        [fail-fn (make-result-fn #f)]
                        [succeed-fn (make-result-fn #t)])
                   (syntax-parameterize
