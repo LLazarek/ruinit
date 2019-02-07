@@ -364,14 +364,13 @@ message:  hahaha
 
 
 (module+ test
-  (define-syntax-rule (assert-all e ...)
+  (define-syntax-rule (check-all e ...)
     (begin
-      (unless e
-        (error 'e))
+      (check-true e)
       ...))
 
   ;; Check test-success? and test-fail?
-  (assert-all
+  (check-all
    (test-success? #t)
    (test-success? (test-result #t ""))
    (not (test-success? #f))
@@ -386,7 +385,7 @@ message:  hahaha
     (unless (equal? a (+ b 1))
       (fail "~a and ~a don't foobar!" a b)))
 
-  (assert-all
+  (check-all
     (test-result/failure? (foobar? 2 5))
     (equal? (test-result-message (foobar? 2 5))
             "2 and 5 don't foobar!")
@@ -398,7 +397,7 @@ message:  hahaha
     (if (equal? a (+ b 1))
         (succeed "They foobar!")
         (fail "~a and ~a don't foobar!" a b)))
-  (assert-all
+  (check-all
     (test-result/failure? (foobar?/succeed 2 5))
     (equal? (test-result-message (foobar?/succeed 2 5))
             "2 and 5 don't foobar!")
@@ -418,7 +417,7 @@ message:  hahaha
           (unless el
             (fail "Element ~a in b failed!" l)))))
 
-  (assert-all
+  (check-all
     (test-result/failure? (foobar?* #f : [one #t] [two #t]))
     (equal? (test-result-message (foobar?* #f : [one #t] [two #t]))
             "At least one a has to succeed!")
@@ -437,7 +436,7 @@ message:  hahaha
   (define-simple-test (foobar?/simple a b c)
     #:fail-message (format "~a, ~a, ~a don't foobar!" a b c)
     (= a b (sub1 c)))
-  (assert-all
+  (check-all
     (test-result/failure? (foobar?/simple 2 5 6))
     (equal? (test-result-message (foobar?/simple 2 5 6))
             "2, 5, 6 don't foobar!")
@@ -448,7 +447,7 @@ message:  hahaha
 
   (define-simple-test (foobar?/simple* a b c)
     (= a b (sub1 c)))
-  (assert-all
+  (check-all
     (test-result/failure? (foobar?/simple* 2 5 (+ 3 3)))
     (equal? (test-result-message (foobar?/simple* 2 5 6))
             "foobar?/simple* fails with 2 5 6")
@@ -461,7 +460,7 @@ message:  hahaha
     #:success-message "SUCCESS"
     #:fail-message (format "~a, ~a, ~a don't foobar!" a b c)
     (= a b (sub1 c)))
-  (assert-all
+  (check-all
     (test-result/failure? (foobar?/simple** 2 5 (+ 3 3)))
     (equal? (test-result-message (foobar?/simple** 2 5 6))
             "2, 5, 6 don't foobar!")
@@ -494,14 +493,14 @@ test:     \\(equal\\? 1 0\\)
      (error 'no-short-circuiting!)))
 
   ;; Test test-success and test-fail outcome constructors
-  (assert-all
+  (check-all
    (test-success? (test-success))
    (test-fail? (test-fail))
    (test-success? (test-success "~a" 5))
    (test-fail? (test-fail "~a" 5)))
 
   ;; Test test-message
-  (assert-all
+  (check-all
    (false? (test-message #t))
    (false? (test-message #f))
    (false? (test-message (test-fail)))
