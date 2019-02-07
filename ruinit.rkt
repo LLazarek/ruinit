@@ -14,6 +14,7 @@
          test-success
          test-fail
          test-message
+         extend-test-message
          max-code-display-length
          use-rackunit-backend
          ;; To support define-test-syntax
@@ -46,14 +47,40 @@
 
 (define test-fail? (negate test-success?))
 
+(define (maybe-format msg fmt-args)
+  (and msg (apply format msg fmt-args)))
+
 (define (test-success [msg #f] . fmt-args)
-  (test-result #t (and msg (apply format msg fmt-args))))
+  (test-result #t (maybe-format msg fmt-args)))
 (define (test-fail [msg #f] . fmt-args)
-  (test-result #f (and msg (apply format msg fmt-args))))
+  (test-result #f (maybe-format msg fmt-args)))
 
 (define/match (test-message t)
   [{(test-result _ msg)} msg]
   [{_} #f])
+
+(define/match (augment-message t augmenter)
+  [{(test-result r msg) f}
+   (test-result r (f msg))]
+  [{other-result        f}
+   (test-result other-result (f #f))])
+(define (extend-test-message t fmt-str
+                             #:append? [append? #t]
+                             . fmt-args)
+  (define (string-extend s1 s2)
+    (apply string-append (if append?
+                             (list s1 s2)
+                             (list s2 s1))))
+  (augment-message t
+                   (match-lambda
+                     [#f
+                      ;; Just use the prepended msg
+                      (maybe-format fmt-str fmt-args)]
+                     [t-msg
+                      (string-extend
+                       t-msg
+                       (or (maybe-format fmt-str fmt-args)
+                           ""))])))
 
 
 ;; test-begin: Test ... -> void?
@@ -301,10 +328,10 @@ message:  hahaha
                      (λ fmt-msg
                        (escape
                         (test-result outcome
-                                     (if (or (empty? fmt-msg)
-                                             (equal? fmt-msg '(#f)))
+                                     (if (empty? fmt-msg)
                                          #f
-                                         (apply format fmt-msg))))))]
+                                         (maybe-format (first fmt-msg)
+                                                       (rest fmt-msg)))))))]
                   [fail-fn (make-result-fn #f)]
                   [succeed-fn (make-result-fn #t)])
              (syntax-parameterize
@@ -330,10 +357,10 @@ message:  hahaha
                           (λ fmt-msg
                             (escape
                              (test-result outcome
-                                          (if (or (empty? fmt-msg)
-                                                  (equal? fmt-msg '(#f)))
+                                          (if (empty? fmt-msg)
                                               #f
-                                              (apply format fmt-msg))))))]
+                                              (maybe-format (first fmt-msg)
+                                                            (rest fmt-msg)))))))]
                        [fail-fn (make-result-fn #f)]
                        [succeed-fn (make-result-fn #t)])
                   (syntax-parameterize
@@ -509,4 +536,35 @@ test:     \\(equal\\? 1 0\\)
    (equal? (test-message (test-fail "foobar ~v" 5))
            "foobar 5")
    (equal? (test-message (test-success "foobar ~v" 5))
-           "foobar 5")))
+           "foobar 5"))
+
+  (define (augmenter msg)
+    (if msg
+        (string-append msg ": blah")
+        "replaced"))
+  (check-all
+   (test-fail? (augment-message (test-fail "foobar ~v" 5)
+                                augmenter))
+   (equal? (test-message (augment-message (test-fail "foobar ~v" 5)
+                                          augmenter))
+           "foobar 5: blah")
+
+   (test-fail? (augment-message (test-fail)
+                                augmenter))
+   (equal? (test-message (augment-message (test-fail)
+                                          augmenter))
+           "replaced"))
+
+  (check-all
+   (test-fail? (extend-test-message (test-fail "foobar ~v" 5)
+                                    ": blah ~v" 10))
+   (equal? (test-message (extend-test-message (test-fail "foobar ~v" 5)
+                                              ": blah ~v" 10))
+           "foobar 5: blah 10")
+   (test-fail? (extend-test-message (test-fail "foobar ~v" 5)
+                                              "blah ~v: " 10
+                                              #:append? #f))
+   (equal? (test-message (extend-test-message (test-fail "foobar ~v" 5)
+                                              "blah ~v: " 10
+                                              #:append? #f))
+           "blah 10: foobar 5")))
