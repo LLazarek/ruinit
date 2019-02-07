@@ -322,7 +322,8 @@ message:  hahaha
      #'(define-syntax (name s)
          (syntax-parse s
            [(_ pat ...)
-            (define body-stx (begin body ...))
+            ;; Allow internal definitions
+            (define body-stx (let () body ...))
             #`(let/cc escape
                 (let* ([make-result-fn
                         (λ (outcome)
@@ -409,6 +410,7 @@ message:  hahaha
 
   (define-test-syntax (foobar?* a ... (~datum :)
                                 [label b] ...)
+    (define bazzle 2)
     #'(begin
         (unless (or a ...)
           (fail "At least one a has to succeed!"))
