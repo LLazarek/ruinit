@@ -37,13 +37,15 @@
        (let ([res t])
          (if (test-success? res)
              (test/and/message t-rest ...)
-             (test-fail "~a: ~a" msg (test-message res)))))]
+             (extend-test-message res
+                                  (string-append msg " ")
+                                  #:append? #f))))]
     [(_)
      ;; lltodo: may want to do some kind of message aggregation here
      ;; instead of a fairly useless generic message.
      ;; Note sure how useful it would be.
      (syntax/loc stx
-       (test-success "all ands passed"))]))
+       (test-success "test/and all tests passed"))]))
 (define-syntax (test/or stx)
   (syntax-parse stx
     [(_ t t-rest ...)
@@ -54,20 +56,24 @@
              (test/or t-rest ...))))]
     [(_)
      (syntax/loc stx
-       (test-fail "all ors failed"))]))
+       (test-fail "test/or: all tests failed"))]))
 (define-syntax-rule (test/if cond-t tt ff)
   (if (test-success? cond-t) tt ff))
 (define-syntax-rule (test/when cond-t tt)
   (test/if cond-t tt (void)))
 (define-syntax-rule (test/unless cond-t tt)
   (test/if cond-t (void) tt))
+
+(define (invert-test-result t)
+  (define msg (test-message t))
+  (if (test-success? t)
+      (test-fail msg)
+      (test-success msg)))
+;; lltodo: add option to not modify message
 (define-syntax-rule (test/not t)
-  (let* ([res t]
-         [msg (test-message res)]
-         [msg+not (and msg (string-append "test/not: " msg))])
-    (if (test-success? res)
-        (test-fail msg+not)
-        (test-success msg+not))))
+  (extend-test-message (invert-test-result t)
+                       "test/not: "
+                       #:append? #f))
 
 ;; These combinators allow short-circuiting failure based on another
 ;; test that automatically propogates the failure message
@@ -75,6 +81,7 @@
   (let ([result res])
     (test/when result
       (fail (test-message result)))))
+;; lltodo: add optional way to augment the failure message
 (define-syntax-rule (fail-unless res)
   (let ([result res])
     (test/unless result
@@ -95,13 +102,13 @@
 
   (check-true (test-success? (test/and/message)))
   (check-true (test-fail? (test/and/message [#f "blah"])))
-  (check-equal? (test-message (test/and/message [#f "blah"]))
-                "blah: #f")
+  (check-equal? (test-message (test/and/message [#f "blah:"]))
+                "blah: ")
   (check-true (test-fail? (test/and/message [#t "a"]
-                                            [(test-fail "foo") "bar"]
+                                            [(test-fail "foo") "bar:"]
                                             [#t "b"])))
   (check-equal? (test-message (test/and/message [#t "a"]
-                                                [(test-fail "foo") "bar"]
+                                                [(test-fail "foo") "bar:"]
                                                 [#t "b"]))
                 "bar: foo")
 
@@ -139,7 +146,7 @@
   (check-true (test-fail? (test/not (test-success "foobar"))))
   (check-true (test-success? (test/not (test-fail "foobar"))))
   (check-equal? (test-message (test/not #t))
-                #f)
+                "test/not: ")
   (check-equal? (test-message (test/not (test-success "foobar")))
                 "test/not: foobar")
   (check-equal? (test-message (test/not (test-fail "foobar")))
