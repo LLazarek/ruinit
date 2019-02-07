@@ -8,7 +8,8 @@
          test/unless
          test/not
          fail-when
-         fail-unless)
+         fail-unless
+         test/for/and)
 
 (require "ruinit.rkt"
          (only-in rackunit
@@ -86,6 +87,17 @@
   (let ([result res])
     (test/unless result
       (fail (test-message result)))))
+
+;; lltodo: test/for/or, uses succeed-when (also a todo)
+(define-test-syntax (test/for/and ([id lst] ...)
+                                  test)
+  #`(for ([id lst] ...)
+      (fail-unless test
+                   ;; lltodo: when add way to augment message with
+                   ;; fail-when/unless, might be useful to add:
+                   ;; "iteration bindings: ~a"
+                   ;; `((id ,id) ...)
+                   )))
 
 (module+ test
   (check-true (test-success? (test/and)))
@@ -174,4 +186,10 @@
                            (test-success "abc went right"))))
   (check-equal? (test-message (test-fail-when
                                (test-success "abc went right")))
-                "abc went right"))
+                "abc went right")
+
+
+  (check-true (test-fail? (test/for/and ([x (in-list '(1 2 3))])
+                                        (equal? x 1))))
+  (check-true (test-success? (test/for/and ([x (in-list '(1 2 3))])
+                                           (not (equal? x 4))))))
