@@ -89,9 +89,9 @@
       (fail (test-message result)))))
 
 ;; lltodo: test/for/or, uses succeed-when (also a todo)
-(define-test-syntax (test/for/and ([id lst] ...)
+(define-test-syntax (test/for/and for-iter-expr
                                   test)
-  #`(for ([id lst] ...)
+  #`(for for-iter-expr
       (fail-unless test
                    ;; lltodo: when add way to augment message with
                    ;; fail-when/unless, might be useful to add:
