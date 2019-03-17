@@ -88,19 +88,37 @@
 ;; in this block to short circuit upon failure.
 (define-syntax (test-begin stx)
   (syntax-parse stx
-    [(_ (~optional (~and (~datum #:short-circuit)
-                         short-kw)))
-     #'(void)]
-    [(_ (~optional (~and (~datum #:short-circuit)
-                         short-kw))
-        ((~datum ignore) ignored-e ...)
+    ;; lltodo: there must be a way to abstract over this options sequence
+    [(_ {~optional
+         {~seq {~alt {~and {~datum #:short-circuit}
+                           short-kw}
+                     {~seq {~datum #:before} before-e:expr}
+                     {~seq {~datum #:after} after-e:expr}}
+               ...}})
+     #'(begin
+         (void)
+         {~? {~@ after-e ...}})]
+    [(_ {~optional
+         {~seq {~alt {~and {~datum #:short-circuit}
+                           short-kw}
+                     {~seq {~datum #:before} before-e:expr}
+                     {~seq {~datum #:after} after-e:expr}}
+               ...}}
+        ({~datum ignore} ignored-e ...)
         e:expr ...)
      (syntax/loc stx
        (begin
+         {~? {~@ before-e ...}}
          ignored-e ...
-         (test-begin (~? short-kw) e ...)))]
-    [(_ (~optional (~and (~datum #:short-circuit)
-                         short-kw))
+         (test-begin {~? {~@ short-kw ...}}
+                     {~? {~@ {~@ #:after after-e} ...}}
+                     e ...)))]
+    [(_ {~optional
+         {~seq {~alt {~and {~datum #:short-circuit}
+                           short-kw}
+                     {~seq {~datum #:before} before-e:expr}
+                     {~seq {~datum #:after} after-e:expr}}
+               ...}}
         test:expr e ...)
      (define test-check
        (quasisyntax/loc stx
@@ -114,15 +132,26 @@
            [else
             (register-test-success!)
             #t])))
-     (if (attribute short-kw)
-         (quasisyntax/loc stx
-           (cond [#,test-check
-                  (test-begin short-kw e ...)]
-                 [else (void)]))
+     ;; ll: use null? instead of empty? to avoid require on racket/list
+     (if (null? (attribute short-kw))
          (quasisyntax/loc stx
            (begin
+             {~? {~@ before-e ...}}
              (void #,test-check)
-             (test-begin e ...))))]))
+             (test-begin {~? {~@ {~@ #:after after-e} ...}} e ...)))
+         (quasisyntax/loc stx
+           (begin
+             {~? {~@ before-e ...}}
+             ;; ll: cond allows internal definitions of later exprs
+             ;; (could also wrap in a let, but I don't know if there's
+             ;; any real difference)
+             (cond [#,test-check
+                    (test-begin #:short-circuit
+                                {~? {~@ {~@ #:after after-e} ...}}
+                                e ...)]
+                   [else
+                    {~? {~@ after-e ...}}
+                    (void)]))))]))
 
 (define-syntax-rule (module+test-begin body ...)
   (module+ test
@@ -228,8 +257,10 @@ HERE
   (define-syntax-rule (assert-output-match pat e)
     (let ([output (with-output-to-string (λ _ e))])
       (unless (regexp-match? pat output)
-        (error (format "Output ~v does not match pattern ~v."
-                       output pat)))))
+        (eprintf "Output ~v does not match pattern ~v.\n"
+                 output
+                 pat)
+        (error 'assert-output-match))))
 
   (assert-output-match "
 Every test \\(0\\) failed.
@@ -279,7 +310,54 @@ message:  hahaha
   (assert-output-match "
 6 of 9 tests passed.
 "
-                       (display-test-results)))
+                       (display-test-results))
+
+  ;; test before and after kws
+  (assert-output-match
+   #rx"before!
+test!
+after1
+after2
+"
+   (test-begin
+     #:before (displayln 'before!)
+     #:after (displayln 'after1)
+     #:after (displayln 'after2)
+     (displayln 'test!)))
+  (assert-output-match
+   #rx"test!
+after1
+after2
+"
+   (test-begin
+     #:after (displayln 'after1)
+     #:after (displayln 'after2)
+     (displayln 'test!)))
+  (assert-output-match
+   #rx"before!
+test!
+"
+   (test-begin
+     #:before (displayln 'before!)
+     (displayln 'test!)))
+  ;; test that after clauses run even when short-circuiting
+  (assert-output-match
+   #rx"test!
+--------------- FAILURE ---------------
+location: ruinit.rkt:[0-9]+:[0-9]+
+test:     #f
+---------------------------------------
+after1
+after2
+"
+   (test-begin
+     #:short-circuit
+     #:after (displayln 'after1)
+     #:after (displayln 'after2)
+     (displayln 'test!)
+     #f
+     (displayln 'should-never-see-me))))
+
 
 
 
