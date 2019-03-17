@@ -88,37 +88,40 @@
 ;; in this block to short circuit upon failure.
 (define-syntax (test-begin stx)
   (syntax-parse stx
+    ;; Discharge before and after kws at top level of `test-begin`, so
+    ;; that the case matching below doesn't need to deal with them
+    [(_ {~optional {~and {~datum #:short-circuit}
+                              short-kw}}
+        {~or* {~seq {~datum #:before} before-e:expr}
+              {~seq {~datum #:after} after-e:expr}} ...+
+        e:expr ...)
+     ;; lltodo: ideally want to allow short-circuit interleaved
+     ;; anywhere in befores and afters, but can't figure out how
+     (define has-short-kw?  (attribute short-kw))
+     #`(around
+        (begin {~? before-e} ... (void))
+        (test-begin
+          #,@(if has-short-kw? #'(#:short-circuit) #'())
+          e ...)
+        (begin {~? after-e} ... (void)))]
+
     ;; lltodo: there must be a way to abstract over this options sequence
-    [(_ {~optional
-         {~seq {~alt {~and {~datum #:short-circuit}
-                           short-kw}
-                     {~seq {~datum #:before} before-e:expr}
-                     {~seq {~datum #:after} after-e:expr}}
-               ...}})
-     #'(begin
-         (void)
-         {~? {~@ after-e ...}})]
-    [(_ {~optional
-         {~seq {~alt {~and {~datum #:short-circuit}
-                           short-kw}
-                     {~seq {~datum #:before} before-e:expr}
-                     {~seq {~datum #:after} after-e:expr}}
-               ...}}
+    [(_ {~optional {~and {~datum #:short-circuit}
+                         short-kw}}
+      ...)
+     #'(void)]
+    [(_ {~optional {~and {~datum #:short-circuit}
+                         short-kw}}
         ({~datum ignore} ignored-e ...)
         e:expr ...)
      (syntax/loc stx
        (begin
-         {~? {~@ before-e ...}}
          ignored-e ...
-         (test-begin {~? {~@ short-kw ...}}
-                     {~? {~@ {~@ #:after after-e} ...}}
-                     e ...)))]
-    [(_ {~optional
-         {~seq {~alt {~and {~datum #:short-circuit}
-                           short-kw}
-                     {~seq {~datum #:before} before-e:expr}
-                     {~seq {~datum #:after} after-e:expr}}
-               ...}}
+         (test-begin
+           {~? short-kw}
+           e ...)))]
+    [(_ {~optional {~and {~datum #:short-circuit}
+                         short-kw}}
         test:expr e ...)
      (define test-check
        (quasisyntax/loc stx
@@ -132,26 +135,20 @@
            [else
             (register-test-success!)
             #t])))
-     ;; ll: use null? instead of empty? to avoid require on racket/list
-     (if (null? (attribute short-kw))
+     (if (attribute short-kw)
+         (quasisyntax/loc stx
+           ;; ll: cond allows internal definitions of later exprs
+           ;; (could also wrap in a let, but I don't know if there's
+           ;; any real difference)
+           (cond [#,test-check
+                  (test-begin short-kw
+                              e ...)]
+                 [else
+                  (void)]))
          (quasisyntax/loc stx
            (begin
-             {~? {~@ before-e ...}}
              (void #,test-check)
-             (test-begin {~? {~@ {~@ #:after after-e} ...}} e ...)))
-         (quasisyntax/loc stx
-           (begin
-             {~? {~@ before-e ...}}
-             ;; ll: cond allows internal definitions of later exprs
-             ;; (could also wrap in a let, but I don't know if there's
-             ;; any real difference)
-             (cond [#,test-check
-                    (test-begin #:short-circuit
-                                {~? {~@ {~@ #:after after-e} ...}}
-                                e ...)]
-                   [else
-                    {~? {~@ after-e ...}}
-                    (void)]))))]))
+             (test-begin e ...))))]))
 
 (define-syntax-rule (module+test-begin body ...)
   (module+ test
@@ -312,7 +309,7 @@ message:  hahaha
 "
                        (display-test-results))
 
-  ;; test before and after kws
+  ;; Test before and after clauses
   (assert-output-match
    #rx"before!
 test!
@@ -340,7 +337,7 @@ test!
    (test-begin
      #:before (displayln 'before!)
      (displayln 'test!)))
-  ;; test that after clauses run even when short-circuiting
+  ;; Test that after clauses run even when short-circuiting
   (assert-output-match
    #rx"test!
 --------------- FAILURE ---------------
@@ -356,7 +353,22 @@ after2
      #:after (displayln 'after2)
      (displayln 'test!)
      #f
-     (displayln 'should-never-see-me))))
+     (displayln 'should-never-see-me)))
+
+  ;; Test that after clauses run even after crash inside the test-begin
+  (assert-output-match
+   #rx"test!
+after1
+after2
+"
+   (with-handlers ([exn:fail? (λ _ (void))])
+     (test-begin
+       #:short-circuit
+       #:after (displayln 'after1)
+       #:after (displayln 'after2)
+       (displayln 'test!)
+       (error 'crash!)
+       (displayln 'should-never-see-me)))))
 
 
 
