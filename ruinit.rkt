@@ -88,67 +88,68 @@
 ;; in this block to short circuit upon failure.
 (define-syntax (test-begin stx)
   (syntax-parse stx
-    ;; Discharge before and after kws at top level of `test-begin`, so
-    ;; that the case matching below doesn't need to deal with them
-    [(_ {~optional {~and {~datum #:short-circuit}
-                              short-kw}}
-        {~or* {~seq {~datum #:before} before-e:expr}
-              {~seq {~datum #:after} after-e:expr}} ...+
-        e:expr ...)
+    ;; Discharge optional kws at top level of `test-begin`, so that
+    ;; the case matching below doesn't need to deal with them
+    [(_
+      {~optional {~seq {~datum #:name} name}}
+      {~optional {~and {~datum #:short-circuit} short-kw}}
+      {~or* {~seq {~datum #:before} before-e:expr}
+            {~seq {~datum #:after} after-e:expr}} ...+
+      e:expr ...)
      ;; lltodo: ideally want to allow short-circuit interleaved
      ;; anywhere in befores and afters, but can't figure out how
      (define has-short-kw?  (attribute short-kw))
      #`(around
         (begin {~? before-e} ... (void))
-        (test-begin
-          #,@(if has-short-kw? #'(#:short-circuit) #'())
-          e ...)
+        (test-begin/internal [{~? name #f} #,has-short-kw?] e ...)
         (begin {~? after-e} ... (void)))]
+    [(_
+      {~optional {~seq {~datum #:name} name}}
+      {~optional {~and {~datum #:short-circuit} short-kw}}
+      e:expr ...)
+     (define has-short-kw?  (attribute short-kw))
+     #`(test-begin/internal [{~? name #f} #,has-short-kw?] e ...)]))
 
-    ;; lltodo: there must be a way to abstract over this options sequence
-    [(_ {~optional {~and {~datum #:short-circuit}
-                         short-kw}}
-      ...)
+(define-syntax (test-begin/internal stx)
+  (syntax-parse stx
+    [(_ [name short-circuit?])
      #'(void)]
-    [(_ {~optional {~and {~datum #:short-circuit}
-                         short-kw}}
+    [(_ [name short-circuit?]
         ({~datum ignore} ignored-e ...)
         e:expr ...)
      (syntax/loc stx
        (begin
          ignored-e ...
-         (test-begin
-           {~? short-kw}
-           e ...)))]
-    [(_ {~optional {~and {~datum #:short-circuit}
-                         short-kw}}
+         (test-begin/internal
+          [name short-circuit?]
+          e ...)))]
+    [(_ [name short-circuit?]
         test:expr e ...)
      (define test-check
        (quasisyntax/loc stx
          (match test
            [(test-result #f msg)
-            (register-test-failure! #'test msg)
+            (register-test-failure! #'test msg (syntax->datum #'name))
             #f]
            [#f
-            (register-test-failure! #'test)
+            (register-test-failure! #'test #f (syntax->datum #'name))
             #f]
            [else
             (register-test-success!)
             #t])))
-     (if (attribute short-kw)
+     (if (syntax->datum #'short-circuit?)
          (quasisyntax/loc stx
            ;; ll: cond allows internal definitions of later exprs
            ;; (could also wrap in a let, but I don't know if there's
            ;; any real difference)
            (cond [#,test-check
-                  (test-begin short-kw
-                              e ...)]
+                  (test-begin/internal [name short-circuit?] e ...)]
                  [else
                   (void)]))
          (quasisyntax/loc stx
            (begin
              (void #,test-check)
-             (test-begin e ...))))]))
+             (test-begin/internal [name short-circuit?] e ...))))]))
 
 (define-syntax-rule (module+test-begin body ...)
   (module+ test
@@ -190,21 +191,27 @@
       (string-append "message:  " extras "\n")
       ""))
 
+(define (test-group-name->string test-group-name)
+  (if test-group-name
+      (format "group:    ~a\n" test-group-name)
+      ""))
+
 
 (define test-count 0)
 (define test-count/failed 0)
 
-(define (register-test-failure! test-stx [msg #f])
+(define (register-test-failure! test-stx [msg #f] [test-group-name #f])
   (cond [(use-rackunit-backend)
-         (rackunit/fail-test! test-stx msg)]
+         (rackunit/fail-test! test-stx msg test-group-name)]
         [else (printf
                #<<HERE
 --------------- FAILURE ---------------
-location: ~a
+~alocation: ~a
 test:     ~a
 ~a---------------------------------------
 
 HERE
+               (test-group-name->string test-group-name)
                (test-location->string (test-stx->location test-stx))
                (abbreviate-code (syntax->string #`(#,test-stx)))
                (failure-msg->string msg))
@@ -230,10 +237,11 @@ HERE
             [(total failed)
              (format "~a of ~a tests passed." (- total failed) total)]))]))
 
-(define (rackunit/fail-test! test-stx [msg #f])
+(define (rackunit/fail-test! test-stx [msg #f] [test-group-name #f])
   ((current-check-around)
    (λ _
-     (with-check-info (['location (check-info-value
+     (with-check-info (['group (test-group-name->string test-group-name)]
+                       ['location (check-info-value
                                    (make-check-location
                                     (list
                                      (syntax-source test-stx)
