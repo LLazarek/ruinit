@@ -90,8 +90,10 @@
 
 ;; lltodo: test/for/or, uses succeed-when (also a todo)
 (define-test-syntax (test/for/and for-iter-expr
+                                  e ...
                                   test)
   #`(for for-iter-expr
+      e ...
       (fail-unless test
                    ;; lltodo: when add way to augment message with
                    ;; fail-when/unless, might be useful to add:
@@ -190,6 +192,11 @@
 
 
   (check-true (test-fail? (test/for/and ([x (in-list '(1 2 3))])
+                                        (equal? x 1))))
+  ;; Test extra exprs in body are ok
+  (check-true (test-fail? (test/for/and ([x (in-list '(1 2 3))])
+                                        (void)
+                                        1 2 3
                                         (equal? x 1))))
   (check-true (test-success? (test/for/and ([x (in-list '(1 2 3))])
                                            (not (equal? x 4))))))
