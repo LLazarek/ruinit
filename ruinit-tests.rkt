@@ -10,10 +10,14 @@
          test->=
          test-within
          test-match
-         test-exn)
+         test-exn
+         equal?-diff-values
+         equal?-pretty-print-values)
 
 (require "ruinit.rkt"
-         (for-syntax syntax/parse))
+         (for-syntax syntax/parse)
+         racket/pretty
+         "diff.rkt")
 
 (define-syntax (define-binary-tests stx)
   (syntax-parse stx
@@ -35,7 +39,6 @@
 
 
 (define-binary-tests
-  equal?
   eqv?
   eq?
   =
@@ -43,6 +46,27 @@
   >
   <=
   >=)
+
+
+(define equal?-diff-values (make-parameter #t))
+(define equal?-pretty-print-values (make-parameter #t))
+
+;; ll: custom equal? test to have nicer failure messages for complex values
+(define-test (test-equal? a b)
+  (define a/pretty (if (equal?-pretty-print-values)
+                       (pretty-format a)
+                       a))
+  (define b/pretty (if (equal?-pretty-print-values)
+                       (pretty-format b)
+                       b))
+  (define pretty-diff
+    (if (equal?-diff-values)
+        (format "diff A B: A = <, B = >\n~a"
+                (dumb-diff-lines/string a/pretty b/pretty))
+        (format "A =\n~a\n\nB =\n~a" a/pretty b/pretty)))
+  (if (equal? a b)
+      (succeed "A is `equal?` to B:\nA = B =\n~a" a/pretty)
+      (fail "A is not `equal?` to B:\n~a" pretty-diff)))
 
 (define-test (test-within a b ε)
   (unless (<= (abs (- a b)) ε)
