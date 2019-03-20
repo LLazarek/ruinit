@@ -619,6 +619,25 @@ test:     \\(equal\\? 1 0\\)
      (equal? 2 3)
      (error 'no-short-circuiting!)))
 
+  ;; Test name on test-begin
+  (assert-output-match
+   #rx"--------------- FAILURE ---------------
+group:    foobar-group
+location: ruinit.rkt:[0-9]+:[0-9]+
+test:     \\(equal\\? 1 0\\)
+---------------------------------------
+"
+   (test-begin
+     #:name foobar-group
+     #:short-circuit
+     (equal? 1 1)
+     (ignore (define a 42))
+     (equal? a a)
+     (equal? 1 0)
+     (equal? 2 3)
+     (error 'no-short-circuiting!)))
+
+
   ;; Test test-success and test-fail outcome constructors
   (check-all
    (test-success? (test-success))
@@ -636,6 +655,7 @@ test:     \\(equal\\? 1 0\\)
    (equal? (test-message (test-success "foobar ~v" 5))
            "foobar 5"))
 
+  ;; Test augment-message
   (define (augmenter msg)
     (if msg
         (string-append msg ": blah")
