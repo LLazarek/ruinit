@@ -76,7 +76,7 @@
     (fail "~a and ~a are not within ~a of each other"
           a b ε)))
 
-(define-test-syntax (test-match pat x)
+(define-test-syntax (test-match x pat)
   #'(unless (match x [pat #t] [else #f])
       (fail "~a fails to match pattern ~a"
             x 'pat)))
@@ -154,9 +154,9 @@ diff A B: A = <, B = >
     (test-success? (test-within 5 6 1))
     (test-success? (test-within 5.1 5.1002 0.001))
 
-    (test-fail? (test-match (list a 2 a) '()))
-    (test-fail? (test-match (list a 2 a) '(2 2 1)))
-    (test-success? (test-match (list a 2 a) '(1 2 1)))
+    (test-fail? (test-match '() (list a 2 a)))
+    (test-fail? (test-match '(2 2 1) (list a 2 a)))
+    (test-success? (test-match '(1 2 1) (list a 2 a)))
 
     (test-fail? (test-exn exn:fail? (+ 1 2)))
     (test-fail? (test-exn exn:fail? (string-append "a" "b")))
