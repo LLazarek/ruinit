@@ -60,13 +60,16 @@
                        (pretty-format b)
                        b))
   (define pretty-diff
-    (if (equal?-diff-values)
+    (if (and (equal?-diff-values)
+             (not (or (base-value? a) (base-value? b))))
         (format "diff A B: A = <, B = >\n~a"
                 (dumb-diff-lines/string a/pretty b/pretty))
         (format "A =\n~a\n\nB =\n~a" a/pretty b/pretty)))
   (if (equal? a b)
       (succeed "A is `equal?` to B:\nA = B =\n~a" a/pretty)
       (fail "A is not `equal?` to B:\n~a" pretty-diff)))
+
+(define base-value? (disjoin number? symbol? string? char?))
 
 (define-test (test-within a b ε)
   (unless (<= (abs (- a b)) ε)
@@ -95,16 +98,25 @@
     (test-success? (test-equal? (mcons 1 2)
                                            (mcons 1 2)))
     (test-fail? (test-equal? 1 0))
-    (equal? (test-message (test-equal? 1 0))
-            "1 is not `equal?` to 0")
+    (equal? (test-message (test-= 1 0))
+            "1 is not `=` to 0")
     (test-fail? (test-equal? 'a 'b))
     (equal? (test-message (test-equal? 'a 'b))
-            "'a is not `equal?` to 'b")
+            "A is not `equal?` to B:
+A =
+'a
+
+B =
+'b")
     (test-fail? (test-equal? '(1 a 2 (3 #f))
-                                       '(1 a 2 (3 #t))))
+                             '(1 a 2 (3 #t))))
     (equal? (test-message (test-equal? '(1 a 2 (3 #f))
                                               '(1 a 2 (3 #t))))
-            "'(1 a 2 (3 #f)) is not `equal?` to '(1 a 2 (3 #t))")
+            "A is not `equal?` to B:
+diff A B: A = <, B = >
+< '(1 a 2 (3 #f))
+> '(1 a 2 (3 #t))
+")
     (test-fail? (test-equal? 2 2.0))
 
     ;; Taken straight from the docs
