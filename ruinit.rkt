@@ -178,9 +178,14 @@
 (define (abbreviate-code str)
   (define len (string-length str))
   (define max (max-code-display-length))
-  (if (> len max)
-      (string-append (substring str 0 (- max 3)) "...")
-      str))
+  (define abbreviated (if (> len max)
+                          (string-append (substring str 0 (- max 4)) "...")
+                          str))
+  (define quotes-in-abbreviated (regexp-match #rx"\"" abbreviated))
+  (if (and quotes-in-abbreviated
+           (odd? (length quotes-in-abbreviated)))
+      (string-append abbreviated "\"")
+      abbreviated))
 
 (define-syntax-rule (++! v)
   (set! v (add1 v)))
