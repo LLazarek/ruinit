@@ -181,7 +181,7 @@
   (define abbreviated (if (> len max)
                           (string-append (substring str 0 (- max 4)) "...")
                           str))
-  (define quotes-in-abbreviated (regexp-match #rx"\"" abbreviated))
+  (define quotes-in-abbreviated (regexp-match* #rx"\"" abbreviated))
   (if (and quotes-in-abbreviated
            (odd? (length quotes-in-abbreviated)))
       (string-append abbreviated "\"")
@@ -266,11 +266,7 @@ HERE
 (module+ test
   (define-syntax-rule (assert-output-match pat e)
     (let ([output (with-output-to-string (λ _ e))])
-      (unless (regexp-match? pat output)
-        (eprintf "Output ~v does not match pattern ~v.\n"
-                 output
-                 pat)
-        (error 'assert-output-match))))
+      (check-regexp-match pat output)))
 
   (assert-output-match "
 Every test \\(0\\) failed.
