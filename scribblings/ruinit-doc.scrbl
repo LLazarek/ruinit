@@ -1,6 +1,21 @@
 #lang scribble/manual
 
+@(require scribble/core)
+
 @title{Ruinit}
+@author[(author+email "Lukas Lazarek" "lukas.lazarek@eecs.northwestern.edu")]
+
+@(define (yellow . content)
+  (make-element (make-style #f (list (make-background-color-property "yellow")))
+                content))
+
+@nested[#:style 'inset]{
+ @yellow{@bold{NOTE}}:
+ This package is considered experimental and under active development.
+ The things documented here may change, but the documentation will be
+ kept up to date with any such changes.
+
+}
 
 @defmodule[ruinit]
 
@@ -122,15 +137,16 @@ provide messages along with the test outcomes.
 }
 
 
-@deftogether[(@defproc[(test-= [a number?] [b number?]) test-result?]
+@deftogether[(@defproc[(test-eq? [a any/c] [b any/c]) test-result?]
+              @defproc[(test-eqv? [a any/c] [b any/c]) test-result?]
+	      @defproc[(test-= [a number?] [b number?]) test-result?]
               @defproc[(test-< [a number?] [b number?]) test-result?]
               @defproc[(test-<= [a number?] [b number?]) test-result?]
               @defproc[(test-> [a number?] [b number?]) test-result?]
-              @defproc[(test->= [a number?] [b number?]) test-result?]
-              @defproc[(test-eq? [a any/c] [b any/c]) test-result?]
-              @defproc[(test-eqv? [a any/c] [b any/c]) test-result?])]{
+              @defproc[(test->= [a number?] [b number?]) test-result?])]{
 
-  These tests all test their respectively named comparators from @racket[racket].
+  These tests all test their respectively named comparators from
+  @racket[racket].
 
 }
 
@@ -355,6 +371,12 @@ make test definition more convenient.
 
 @section[#:tag "test-outcomes"]{Test outcomes}
 
+The tests and combinators provided by ruinit generally return
+@racketlink[test-result?]{test results}, which package together a
+result value with extra information used in failure reporting. Ruinit
+recognizes such values specially, but they are not the only things
+that are recognized as test outcomes: any value can be a test result.
+
 Two kinds of values are considered failure outcomes for a test:
 @itemlist[
 @item{@racket[#f], or}
@@ -373,11 +395,17 @@ Two kinds of values are considered failure outcomes for a test:
   @racketlink[test-result?]{test-result} indicating test failure (or
   neither of the two for @racket[test-success?]).
 
+  These functions are inverses; the result of one is the opposite of
+  the other.
+
   @examples[#:eval ruinit-eval
   (test-fail? (test-= 1 1))
   (test-success? (test-= 1 1))
   (test-fail? (test-= 1 2))
-  (test-success? (test-= 1 2))]
+  (test-success? (test-= 1 2))
+  (test-fail? #f)
+  (test-fail? #t)
+  (test-fail? '(1 2 3))]
 
 }
 
