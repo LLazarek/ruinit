@@ -18,7 +18,7 @@
 
 @(define ruinit-eval (make-base-eval))
 @interaction-eval[#:eval ruinit-eval
-                  (require "main.rkt")]
+                  (require racket "main.rkt")]
 
 @;;;;;;;;;;;;;;;;;;;;;;;@
 @; Begin documentation ;@
@@ -26,7 +26,7 @@
 
 @section{Introduction}
 
-Ruinit is a unit testing framework aimed at improving the
+Ruinit is a simple unit testing framework aimed at improving the
 composability of tests while maintaining good failure reporting.
 
 @section[#:tag "test-begin"]{Running tests}
@@ -106,7 +106,9 @@ checks and communicate results to the testing environment.
 @section[#:tag "tests"]{Tests}
 
 Ruinit provides a number of simple tests with improved error reporting
-for convenience.
+for convenience. These tests produce
+@racketlink[test-result?]{test-results} rather than booleans to
+provide messages along with the test outcomes.
 
 @defproc[(test-equal? [a any/c] [b any/c]) test-result?]{
 
@@ -172,6 +174,19 @@ These forms also respect the messages of their arguments when feasible.
               @defform[(or/test test-e ...)]
               @defform[(not/test test-e)])]{
 
+  @examples[#:eval ruinit-eval
+  (test-begin
+    (and/test (test-= 1 1)
+              (test-= 1 2)
+	      (test-= 1 3)))
+
+  (test-begin
+    (or/test (test-= 1 1)
+             (test-= 1 2)
+	     (test-= 1 3)))
+
+  (test-begin (not/test (test-= 1 1)))]
+
 }
 
 @deftogether[(@defform[(if/test condition e e)]
@@ -182,12 +197,24 @@ These forms also respect the messages of their arguments when feasible.
 
 @defform[(for/and/test for-clause body ...)]{
 
+  @examples[#:eval ruinit-eval
+  (test-begin
+    (for/and/test ([i (in-naturals)])
+      (test-< i 5)))]
+
 }
 
 @defform[(and/test/message [test-e message] ...)]{
 
   Combines tests like @racket[and/test], but augments the message of a
   failing @racket[test-e] with the given @racket[message].
+
+  @examples[#:eval ruinit-eval
+  (test-begin
+    (and/test/message
+      [(test-= (+ 1 1) 2) "I don't understand +:"]
+      [(test-= (- 1 1) 2) "I don't understand -:"]))]
+
 
 }
 
@@ -198,6 +225,14 @@ These forms also respect the messages of their arguments when feasible.
   These forms provide a shorthand for checking a test result with
   @racket[when/test] and @racket[unless/test] followed by calling
   @racket[fail] and propogating the test message of @racket[test-e].
+
+  @examples[#:eval ruinit-eval
+  (define-test (test-foo x)
+    (fail-when (test-= x 2)))
+
+  (test-begin
+    (test-foo 3)
+    (test-foo 2))]
 
 }
 
@@ -282,6 +317,16 @@ make test definition more convenient.
   @racket[succeed] forms are available within the body of the test
   syntax.
 
+  @examples[#:eval ruinit-eval
+  (define-test-syntax (fancy-test-syntax before-e ... {~datum :} after-e ...)
+    #'(begin
+        (fail-unless (and/test before-e ...))
+	(unless/test (or/test after-e ...)
+	  (fail "At least one after-e must succeed, but all failed"))))
+
+  (test-begin
+    (fancy-test-syntax (= 1 1) (equal? 'a 'a) : #f))]
+
 }
 
 @deftogether[(@defform[(fail [fmt-string fmt-arg ...])
@@ -327,6 +372,12 @@ Two kinds of values are considered failure outcomes for a test:
   Returns whether @racket[v] is @racket[#f] or a
   @racketlink[test-result?]{test-result} indicating test failure (or
   neither of the two for @racket[test-success?]).
+
+  @examples[#:eval ruinit-eval
+  (test-fail? (test-= 1 1))
+  (test-success? (test-= 1 1))
+  (test-fail? (test-= 1 2))
+  (test-success? (test-= 1 2))]
 
 }
 
@@ -410,9 +461,11 @@ Two kinds of values are considered failure outcomes for a test:
 @defparam[use-rackunit-backend bool boolean?
           #:value #f]{
 
-  Controls whether test results are handled via rackunit (which
-  communicates nicely with @racket[raco test]) or by ruinit's own
-  handlers, which have display messages in a slightly different
-  format.
+  Controls whether test results are handled via rackunit or by
+  ruinit's own handlers, which display messages in a slightly
+  different format more tailored to ruinit's structure.
+
+  Regardless of the value of this parameter, test results will be
+  logged for working nicely with @racket[raco test].
 
 }
