@@ -19,21 +19,16 @@
 
 @defmodule[ruinit]
 
-@; TODOS:
-@;   - Fix source locations and spacing of example error messages
-@;     -> Might need to just give fake output
-
 @;;;;;;;;;;;;;;;@
 @; Boilerplate ;@
 @;;;;;;;;;;;;;;;@
 
 @(require (for-label racket
                      "main.rkt")
-          scribble/eval)
+          scribble/example)
 
 @(define ruinit-eval (make-base-eval))
-@interaction-eval[#:eval ruinit-eval
-                  (require racket "main.rkt")]
+@examples[#:eval ruinit-eval #:hidden (require racket "main.rkt")]
 
 @;;;;;;;;;;;;;;;;;;;;;;;@
 @; Begin documentation ;@
@@ -91,7 +86,7 @@ checks and communicate results to the testing environment.
   provide convenient mechanisms for setting up and cleaning up
   test environments.
 
-  @examples[#:eval ruinit-eval
+  @examples[#:eval ruinit-eval #:preserve-source-locations
   (test-begin
     (equal? (string-upcase "hello") "HELLO")
     (ignore (define four (+ 2 2)))
@@ -107,9 +102,10 @@ checks and communicate results to the testing environment.
     (ignore (displayln 'never-happens))
     (= 5 "never happens due to short circuiting"))]
 
-  Note that the formatting for error messages above is off (e.g.
-  source locations, missing spaces in the test expression) due to how
-  scribble evaluates the examples.
+  Note that the source locations in the failure messages are not
+  particularly meaningful in the context of examples, but in general
+  they will always point to the source location of the top level test
+  that failed (regardless of macro transformations etc).
 
 }
 
@@ -133,6 +129,11 @@ provide messages along with the test outcomes.
   compared. This extra behavior can be controlled with
   @racket[test-equal?-pretty-print-values] and
   @racket[test-equal?-diff-values].
+
+  @examples[#:eval ruinit-eval #:preserve-source-locations
+  (test-begin
+    (test-equal? (build-list 30 values)
+                 (list-set (build-list 30 values) 15 1000)))]
 
 }
 
@@ -190,16 +191,12 @@ These forms also respect the messages of their arguments when feasible.
               @defform[(or/test test-e ...)]
               @defform[(not/test test-e)])]{
 
-  @examples[#:eval ruinit-eval
+  @examples[#:eval ruinit-eval #:preserve-source-locations
   (test-begin
-    (and/test (test-= 1 1)
-              (test-= 1 2)
-	      (test-= 1 3)))
+    (and/test (test-= 1 1) (test-= 1 2) (test-= 1 3)))
 
   (test-begin
-    (or/test (test-= 1 1)
-             (test-= 1 2)
-	     (test-= 1 3)))
+    (or/test (test-= 1 1) (test-= 1 2) (test-= 1 3)))
 
   (test-begin (not/test (test-= 1 1)))]
 
@@ -213,7 +210,7 @@ These forms also respect the messages of their arguments when feasible.
 
 @defform[(for/and/test for-clause body ...)]{
 
-  @examples[#:eval ruinit-eval
+  @examples[#:eval ruinit-eval #:preserve-source-locations
   (test-begin
     (for/and/test ([i (in-naturals)])
       (test-< i 5)))]
@@ -225,7 +222,7 @@ These forms also respect the messages of their arguments when feasible.
   Combines tests like @racket[and/test], but augments the message of a
   failing @racket[test-e] with the given @racket[message].
 
-  @examples[#:eval ruinit-eval
+  @examples[#:eval ruinit-eval #:preserve-source-locations
   (test-begin
     (and/test/message
       [(test-= (+ 1 1) 2) "I don't understand +:"]
@@ -242,7 +239,7 @@ These forms also respect the messages of their arguments when feasible.
   @racket[when/test] and @racket[unless/test] followed by calling
   @racket[fail] and propogating the test message of @racket[test-e].
 
-  @examples[#:eval ruinit-eval
+  @examples[#:eval ruinit-eval #:preserve-source-locations
   (define-test (test-foo x)
     (fail-when (test-= x 2)))
 
@@ -272,7 +269,7 @@ make test definition more convenient.
   @racket[succeed], which immediately abort a test with a failure or
   success respectively.
 
-  @examples[#:eval ruinit-eval
+  @examples[#:eval ruinit-eval #:preserve-source-locations
   (define-test (upcase-of? upper lower)
     (equal? upper (string-upcase lower)))
 
@@ -307,7 +304,7 @@ make test definition more convenient.
   This form expands to @racket[define-test], so @racket[fail] and
   @racket[succeed] are available in the test's body.
 
-  @examples[#:eval ruinit-eval
+  @examples[#:eval ruinit-eval #:preserve-source-locations
   (define-simple-test (my= a b)
     (= a b))
   (define-simple-test (my=/with-messages a b)
@@ -333,7 +330,7 @@ make test definition more convenient.
   @racket[succeed] forms are available within the body of the test
   syntax.
 
-  @examples[#:eval ruinit-eval
+  @examples[#:eval ruinit-eval #:preserve-source-locations
   (define-test-syntax (fancy-test-syntax before-e ... {~datum :} after-e ...)
     #'(begin
         (fail-unless (and/test before-e ...))
@@ -398,7 +395,7 @@ Two kinds of values are considered failure outcomes for a test:
   These functions are inverses; the result of one is the opposite of
   the other.
 
-  @examples[#:eval ruinit-eval
+  @examples[#:eval ruinit-eval #:preserve-source-locations
   (test-fail? (test-= 1 1))
   (test-success? (test-= 1 1))
   (test-fail? (test-= 1 2))
