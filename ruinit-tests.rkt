@@ -11,8 +11,8 @@
          test-within
          test-match
          test-exn
-         equal?-diff-values
-         equal?-pretty-print-values)
+         test-equal?-diff-values
+         test-equal?-pretty-print-values)
 
 (require "ruinit.rkt"
          (for-syntax syntax/parse)
@@ -48,19 +48,19 @@
   >=)
 
 
-(define equal?-diff-values (make-parameter #t))
-(define equal?-pretty-print-values (make-parameter #t))
+(define test-equal?-diff-values (make-parameter #t))
+(define test-equal?-pretty-print-values (make-parameter #t))
 
 ;; ll: custom equal? test to have nicer failure messages for complex values
 (define-test (test-equal? a b)
-  (define a/pretty (if (equal?-pretty-print-values)
+  (define a/pretty (if (test-equal?-pretty-print-values)
                        (pretty-format a)
                        a))
-  (define b/pretty (if (equal?-pretty-print-values)
+  (define b/pretty (if (test-equal?-pretty-print-values)
                        (pretty-format b)
                        b))
   (define pretty-diff
-    (if (and (equal?-diff-values)
+    (if (and (test-equal?-diff-values)
              (not (or (base-value? a) (base-value? b))))
         (format "diff A B: A = <, B = >\n~a"
                 (dumb-diff-lines/string a/pretty b/pretty))
