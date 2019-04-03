@@ -168,25 +168,25 @@ counterparts in @racket[racket], but extended to handle
 @racket[#f] and a success like @racket[#t].
 These forms also respect the messages of their arguments when feasible.
 
-@deftogether[(@defform[(test/and test-e ...)]
-              @defform[(test/or test-e ...)]
-              @defform[(test/not test-e)])]{
+@deftogether[(@defform[(and/test test-e ...)]
+              @defform[(or/test test-e ...)]
+              @defform[(not/test test-e)])]{
 
 }
 
-@deftogether[(@defform[(test/if condition e e)]
-              @defform[(test/when condition e ...)]
-              @defform[(test/unless condition e ...)])]{
+@deftogether[(@defform[(if/test condition e e)]
+              @defform[(when/test condition e ...)]
+              @defform[(unless/test condition e ...)])]{
 
 }
 
-@defform[(test/for/and for-clause body ...)]{
+@defform[(for/and/test for-clause body ...)]{
 
 }
 
-@defform[(test/and/message [test-e message] ...)]{
+@defform[(and/test/message [test-e message] ...)]{
 
-  Combines tests like @racket[test/and], but augments the message of a
+  Combines tests like @racket[and/test], but augments the message of a
   failing @racket[test-e] with the given @racket[message].
 
 }
@@ -196,7 +196,7 @@ These forms also respect the messages of their arguments when feasible.
               @defform[(fail-unless test-e)])]{
 
   These forms provide a shorthand for checking a test result with
-  @racket[test/when] and @racket[test/unless] followed by calling
+  @racket[when/test] and @racket[unless/test] followed by calling
   @racket[fail] and propogating the test message of @racket[test-e].
 
 }

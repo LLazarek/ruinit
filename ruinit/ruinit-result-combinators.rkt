@@ -1,15 +1,15 @@
 #lang racket
 
-(provide test/and
-         test/and/message
-         test/or
-         test/if
-         test/when
-         test/unless
-         test/not
+(provide and/test
+         and/test/message
+         or/test
+         if/test
+         when/test
+         unless/test
+         not/test
          fail-when
          fail-unless
-         test/for/and)
+         for/and/test)
 
 (require "ruinit.rkt"
          (only-in rackunit
@@ -17,13 +17,13 @@
                   check-false
                   check-equal?))
 
-(define-syntax (test/and stx)
+(define-syntax (and/test stx)
   (syntax-parse stx
     [(_ t t-rest ...)
      (syntax/loc stx
        (let ([res t])
          (if (test-success? res)
-             (test/and t-rest ...)
+             (and/test t-rest ...)
              res)))]
     [(_)
      ;; lltodo: may want to do some kind of message aggregation here
@@ -31,13 +31,13 @@
      ;; Note sure how useful it would be.
      (syntax/loc stx
        (test-success "all ands passed"))]))
-(define-syntax (test/and/message stx)
+(define-syntax (and/test/message stx)
   (syntax-parse stx
     [(_ [t msg] t-rest ...)
      (syntax/loc stx
        (let ([res t])
          (if (test-success? res)
-             (test/and/message t-rest ...)
+             (and/test/message t-rest ...)
              (extend-test-message res
                                   (string-append msg " ")
                                   #:append? #f))))]
@@ -46,24 +46,24 @@
      ;; instead of a fairly useless generic message.
      ;; Note sure how useful it would be.
      (syntax/loc stx
-       (test-success "test/and all tests passed"))]))
-(define-syntax (test/or stx)
+       (test-success "and/test all tests passed"))]))
+(define-syntax (or/test stx)
   (syntax-parse stx
     [(_ t t-rest ...)
      (syntax/loc stx
        (let ([res t])
          (if (test-success? res)
              res
-             (test/or t-rest ...))))]
+             (or/test t-rest ...))))]
     [(_)
      (syntax/loc stx
-       (test-fail "test/or: all tests failed"))]))
-(define-syntax-rule (test/if cond-t tt ff)
+       (test-fail "or/test: all tests failed"))]))
+(define-syntax-rule (if/test cond-t tt ff)
   (if (test-success? cond-t) tt ff))
-(define-syntax-rule (test/when cond-t tt)
-  (test/if cond-t tt (void)))
-(define-syntax-rule (test/unless cond-t tt)
-  (test/if cond-t (void) tt))
+(define-syntax-rule (when/test cond-t tt)
+  (if/test cond-t tt (void)))
+(define-syntax-rule (unless/test cond-t tt)
+  (if/test cond-t (void) tt))
 
 (define (invert-test-result t)
   (define msg (test-message t))
@@ -71,25 +71,25 @@
       (test-fail msg)
       (test-success msg)))
 ;; lltodo: add option to not modify message
-(define-syntax-rule (test/not t)
+(define-syntax-rule (not/test t)
   (extend-test-message (invert-test-result t)
-                       "test/not: "
+                       "not/test: "
                        #:append? #f))
 
 ;; These combinators allow short-circuiting failure based on another
 ;; test that automatically propogates the failure message
 (define-syntax-rule (fail-when res)
   (let ([result res])
-    (test/when result
+    (when/test result
       (fail (test-message result)))))
 ;; lltodo: add optional way to augment the failure message
 (define-syntax-rule (fail-unless res)
   (let ([result res])
-    (test/unless result
+    (unless/test result
       (fail (test-message result)))))
 
 ;; lltodo: test/for/or, uses succeed-when (also a todo)
-(define-test-syntax (test/for/and for-iter-expr
+(define-test-syntax (for/and/test for-iter-expr
                                   e ...
                                   test)
   #`(for for-iter-expr
@@ -102,69 +102,69 @@
                    )))
 
 (module+ test
-  (check-true (test-success? (test/and)))
-  (check-true (test-fail? (test/and #f)))
-  (check-true (test-fail? (test/and #f #t)))
-  (check-true (test-success? (test/and #t #t)))
+  (check-true (test-success? (and/test)))
+  (check-true (test-fail? (and/test #f)))
+  (check-true (test-fail? (and/test #f #t)))
+  (check-true (test-success? (and/test #t #t)))
   ;; Test message propogation
-  (check-equal? (test-message (test/and #t #t))
+  (check-equal? (test-message (and/test #t #t))
                 "all ands passed")
-  (check-equal? (test-message (test/and #t #f))
+  (check-equal? (test-message (and/test #t #f))
                 #f)
-  (check-equal? (test-message (test/and #t (test-fail "foobar")))
+  (check-equal? (test-message (and/test #t (test-fail "foobar")))
                 "foobar")
 
-  (check-true (test-success? (test/and/message)))
-  (check-true (test-fail? (test/and/message [#f "blah"])))
-  (check-equal? (test-message (test/and/message [#f "blah:"]))
+  (check-true (test-success? (and/test/message)))
+  (check-true (test-fail? (and/test/message [#f "blah"])))
+  (check-equal? (test-message (and/test/message [#f "blah:"]))
                 "blah: ")
-  (check-true (test-fail? (test/and/message [#t "a"]
+  (check-true (test-fail? (and/test/message [#t "a"]
                                             [(test-fail "foo") "bar:"]
                                             [#t "b"])))
-  (check-equal? (test-message (test/and/message [#t "a"]
+  (check-equal? (test-message (and/test/message [#t "a"]
                                                 [(test-fail "foo") "bar:"]
                                                 [#t "b"]))
                 "bar: foo")
 
-  (check-true (test-fail? (test/or)))
-  (check-true (test-fail? (test/or #f)))
-  (check-true (test-success? (test/or #f #t)))
-  (check-true (test-success? (test/or #t #t)))
+  (check-true (test-fail? (or/test)))
+  (check-true (test-fail? (or/test #f)))
+  (check-true (test-success? (or/test #f #t)))
+  (check-true (test-success? (or/test #t #t)))
   ;; Test message propogation
-  (check-equal? (test-message (test/or #t #t))
+  (check-equal? (test-message (or/test #t #t))
                 #f)
-  (check-equal? (test-message (test/or #t #f))
+  (check-equal? (test-message (or/test #t #f))
                 #f)
-  (check-equal? (test-message (test/or #f
+  (check-equal? (test-message (or/test #f
                                        (test-success "foobar")
                                        (test-fail "baz")))
                 "foobar")
 
-  (check-equal? (test/if #t 1 2) 1)
-  (check-equal? (test/if #f 1 2) 2)
-  (check-equal? (test/if (test-success) 1 2) 1)
-  (check-equal? (test/if (test-fail) 1 2) 2)
+  (check-equal? (if/test #t 1 2) 1)
+  (check-equal? (if/test #f 1 2) 2)
+  (check-equal? (if/test (test-success) 1 2) 1)
+  (check-equal? (if/test (test-fail) 1 2) 2)
 
-  (check-equal? (test/when #t 1) 1)
-  (check-equal? (test/when #f 1) (void))
-  (check-equal? (test/when (test-success) 1) 1)
-  (check-equal? (test/when (test-fail) 1) (void))
+  (check-equal? (when/test #t 1) 1)
+  (check-equal? (when/test #f 1) (void))
+  (check-equal? (when/test (test-success) 1) 1)
+  (check-equal? (when/test (test-fail) 1) (void))
 
-  (check-equal? (test/unless #t 1) (void))
-  (check-equal? (test/unless #f 1) 1)
-  (check-equal? (test/unless (test-success) 1) (void))
-  (check-equal? (test/unless (test-fail) 1) 1)
+  (check-equal? (unless/test #t 1) (void))
+  (check-equal? (unless/test #f 1) 1)
+  (check-equal? (unless/test (test-success) 1) (void))
+  (check-equal? (unless/test (test-fail) 1) 1)
 
-  (check-true (test-fail? (test/not #t)))
-  (check-true (test-success? (test/not #f)))
-  (check-true (test-fail? (test/not (test-success "foobar"))))
-  (check-true (test-success? (test/not (test-fail "foobar"))))
-  (check-equal? (test-message (test/not #t))
-                "test/not: ")
-  (check-equal? (test-message (test/not (test-success "foobar")))
-                "test/not: foobar")
-  (check-equal? (test-message (test/not (test-fail "foobar")))
-                "test/not: foobar")
+  (check-true (test-fail? (not/test #t)))
+  (check-true (test-success? (not/test #f)))
+  (check-true (test-fail? (not/test (test-success "foobar"))))
+  (check-true (test-success? (not/test (test-fail "foobar"))))
+  (check-equal? (test-message (not/test #t))
+                "not/test: ")
+  (check-equal? (test-message (not/test (test-success "foobar")))
+                "not/test: foobar")
+  (check-equal? (test-message (not/test (test-fail "foobar")))
+                "not/test: foobar")
 
   (define-test (test-fail-unless x)
     (fail-unless x))
@@ -191,12 +191,12 @@
                 "abc went right")
 
 
-  (check-true (test-fail? (test/for/and ([x (in-list '(1 2 3))])
+  (check-true (test-fail? (for/and/test ([x (in-list '(1 2 3))])
                                         (equal? x 1))))
   ;; Test extra exprs in body are ok
-  (check-true (test-fail? (test/for/and ([x (in-list '(1 2 3))])
+  (check-true (test-fail? (for/and/test ([x (in-list '(1 2 3))])
                                         (void)
                                         1 2 3
                                         (equal? x 1))))
-  (check-true (test-success? (test/for/and ([x (in-list '(1 2 3))])
+  (check-true (test-success? (for/and/test ([x (in-list '(1 2 3))])
                                            (not (equal? x 4))))))
