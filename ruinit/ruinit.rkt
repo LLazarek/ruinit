@@ -221,12 +221,15 @@ HERE
                (abbreviate-code (syntax->string #`(#,test-stx)))
                (failure-msg->string msg))
               (++! test-count)
-              (++! test-count/failed)]))
+              (++! test-count/failed)
+              (test-log! #f)]))
 
 (define (register-test-success!)
-  (if (use-rackunit-backend)
-      (rackunit/succeed-test!)
-      (++! test-count)))
+  (cond [(use-rackunit-backend)
+         (rackunit/succeed-test!)]
+        [else
+         (++! test-count)
+         (test-log! #t)]))
 
 (define (display-test-results)
   (cond [(use-rackunit-backend)
@@ -245,7 +248,7 @@ HERE
 (define (rackunit/fail-test! test-stx [msg #f] [test-group-name #f])
   ((current-check-around)
    (λ _
-     (with-check-info (['group (test-group-name->string test-group-name)]
+     (with-check-info (['group (or test-group-name 'N/A)]
                        ['location (check-info-value
                                    (make-check-location
                                     (list
@@ -254,7 +257,9 @@ HERE
                                      (syntax-column test-stx)
                                      #f
                                      #f)))]
-                       ['test (string->symbol (abbreviate-code (syntax->string #`(#,test-stx))))])
+                       ['test (string->symbol
+                               (abbreviate-code
+                                (syntax->string #`(#,test-stx))))])
        (fail-check (failure-msg->string msg))))))
 
 (define (rackunit/succeed-test!)
