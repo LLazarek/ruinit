@@ -1,0 +1,9 @@
+#+TITLE: Ruinit
+#+AUTHOR: Lukas Lazarek
+
+Ruinit is a small testing library that can be used as an interface wrapper around [[https://docs.racket-lang.org/rackunit/][rackunit]].
+Ruinit aims to mitigate issues around test composition and error reporting to allow building complex tests from smaller ones while maintaining good error reporting.
+
+See the documentation for more information.
+
+Note that this package is still in an experimental stage and under active development, so things may change.
