@@ -17,7 +17,7 @@
 (require "ruinit.rkt"
          (for-syntax syntax/parse)
          racket/pretty
-         "../diff/diff.rkt")
+         "diff/diff.rkt")
 
 (define-syntax (define-binary-tests stx)
   (syntax-parse stx

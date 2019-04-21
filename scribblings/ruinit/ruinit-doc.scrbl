@@ -23,12 +23,11 @@
 @; Boilerplate ;@
 @;;;;;;;;;;;;;;;@
 
-@(require (for-label racket
-                     "main.rkt")
+@(require (for-label racket ruinit)
           scribble/example)
 
 @(define ruinit-eval (make-base-eval))
-@examples[#:eval ruinit-eval #:hidden (require racket "main.rkt")]
+@examples[#:eval ruinit-eval #:hidden (require racket ruinit)]
 
 @;;;;;;;;;;;;;;;;;;;;;;;@
 @; Begin documentation ;@
