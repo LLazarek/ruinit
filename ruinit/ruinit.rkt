@@ -405,7 +405,7 @@ after2
 
 (define-for-syntax (wrap-with-test-definer-env test-body-stx)
   (with-syntax ([body-stx test-body-stx])
-    #'(let/cc escape
+    #'(let/ec escape
         (let* ([make-result-fn
                 (λ (outcome)
                   (λ fmt-msg
@@ -426,7 +426,7 @@ after2
   (syntax-parse stx
     [(_ (name:id . args) body:expr ...)
      #'(define (name . args)
-         (let/cc escape
+         (let/ec escape
            (let* ([make-result-fn
                    (λ (outcome)
                      (λ fmt-msg
@@ -449,13 +449,14 @@ after2
 
 (define-syntax (define-test-syntax stx)
   (syntax-parse stx
-    [(_ (name:id pat:expr ...) body ...)
+    [(_ (name:id pat:expr ...) pattern-directive ... body-e)
      #'(define-syntax (name s)
          (syntax-parse s
            [(_ pat ...)
+            pattern-directive ...
             ;; Allow internal definitions
-            (define body-stx (let () body ...))
-            #`(let/cc escape
+            (define body-stx (let () body-e))
+            #`(let/ec escape
                 (let* ([make-result-fn
                         (λ (outcome)
                           (λ fmt-msg
@@ -484,7 +485,7 @@ after2
         (~optional (~seq (~datum #:fail-message) fail-msg:expr))
         body:expr ...)
      #'(define-test (name arg ...)
-         (if (test-success? (begin body ...))
+         (if (test-success? (let () body ...))
              (succeed (~? succeed-msg
                           (string-join (list (~a 'name)
                                              "succeeds with"
@@ -541,11 +542,12 @@ after2
 
   (define-test-syntax (foobar?* a ... (~datum :)
                                 [label b] ...)
-    (define bazzle 2)
+    #:do [(define bazzle 2)]
+    #:with [b2 ...] #'(b ...)
     #'(begin
         (unless (or a ...)
           (fail "At least one a has to succeed!"))
-        (for ([el (in-list (list b ...))]
+        (for ([el (in-list (list b2 ...))]
               [l  (in-list '(label ...))])
           (unless el
             (fail "Element ~a in b failed!" l)))))
