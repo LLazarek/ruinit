@@ -9,7 +9,8 @@
          not/test
          fail-when
          fail-unless
-         for/and/test)
+         for/and/test
+         for/or/test)
 
 (require "ruinit.rkt"
          (only-in rackunit
@@ -88,6 +89,11 @@
     (unless/test result
       (fail (test-message result)))))
 
+(define-syntax-rule (succeed-when res)
+  (let ([result res])
+    (when/test result
+      (succeed (test-message result)))))
+
 ;; lltodo: test/for/or, uses succeed-when (also a todo)
 (define-test-syntax (for/and/test for-iter-expr
                                   e ...
@@ -100,6 +106,14 @@
                    ;; "iteration bindings: ~a"
                    ;; `((id ,id) ...)
                    )))
+(define-test-syntax (for/or/test for-iter-expr
+                                 e ...
+                                 test)
+  #`(begin
+      (for for-iter-expr
+        e ...
+        (succeed-when test))
+      (fail "for/or/test: No iterations succeeded.")))
 
 (module+ test
   (check-true (test-success? (and/test)))
