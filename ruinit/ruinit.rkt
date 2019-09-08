@@ -118,7 +118,7 @@
         ({~datum ignore} ignored-e ...)
         e:expr ...)
      (syntax/loc stx
-       (begin
+       (let () ;; ignore-definitions are local
          ignored-e ...
          (test-begin/internal
           [name short-circuit?]
