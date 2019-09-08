@@ -449,7 +449,7 @@ after2
 
 (define-syntax (define-test-syntax stx)
   (syntax-parse stx
-    [(_ (name:id pat:expr ...) pattern-directive ... body-e)
+    [(_ (name:id pat ...) pattern-directive ... body-e)
      #'(define-syntax (name s)
          (syntax-parse s
            [(_ pat ...)
