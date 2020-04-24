@@ -205,6 +205,12 @@
 (define test-count 0)
 (define test-count/failed 0)
 
+(define (pretty-format-stx stx)
+  (define (do-backup-format . _)
+    (pretty-format (syntax->datum stx)))
+  (with-handlers ([exn:fail? do-backup-format])
+    (syntax->string stx)))
+
 (define (register-test-failure! test-stx [msg #f] [test-group-name #f])
   (cond [(use-rackunit-backend)
          (rackunit/fail-test! test-stx msg test-group-name)]
@@ -218,7 +224,7 @@ test:     ~a
 HERE
                (test-group-name->string test-group-name)
                (test-location->string (test-stx->location test-stx))
-               (abbreviate-code (syntax->string #`(#,test-stx)))
+               (abbreviate-code (pretty-format-stx #`(#,test-stx)))
                (failure-msg->string msg))
               (++! test-count)
               (++! test-count/failed)
@@ -259,7 +265,7 @@ HERE
                                      #f)))]
                        ['test (string->symbol
                                (abbreviate-code
-                                (syntax->string #`(#,test-stx))))])
+                                (pretty-format-stx #`(#,test-stx))))])
        (fail-check (failure-msg->string msg))))))
 
 (define (rackunit/succeed-test!)
