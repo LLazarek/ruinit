@@ -78,8 +78,8 @@
 
 (define-test-syntax (test-match x pat)
   #'(unless (match x [pat #t] [else #f])
-      (fail "~a fails to match pattern ~a"
-            x 'pat)))
+      (fail "Value fails to match pattern:\nValue: ~a\nPattern: ~a"
+            (pretty-format x #:mode 'write) (pretty-format 'pat))))
 
 (define-test-syntax (test-exn exn-pred e)
   #'(with-handlers ([exn-pred (λ _ #t)]
