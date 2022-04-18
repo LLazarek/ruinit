@@ -174,6 +174,11 @@
   [{(test-location path line col)}
    (format "~a:~a:~a" (basename path) line col)])
 
+(define (indent-multiline-test-message str)
+  (string-trim (regexp-replace* #rx"(?m:^)"
+                                str
+                                "          ")))
+
 (define max-code-display-length (make-parameter 70))
 (define (abbreviate-code str)
   (define len (string-length str))
@@ -182,10 +187,13 @@
                           (string-append (substring str 0 (- max 4)) "...")
                           str))
   (define quotes-in-abbreviated (regexp-match* #rx"\"" abbreviated))
-  (if (and quotes-in-abbreviated
-           (odd? (length quotes-in-abbreviated)))
-      (string-append abbreviated "\"")
-      abbreviated))
+  (define with-balanced-quotes
+    (if (and quotes-in-abbreviated
+             (odd? (length quotes-in-abbreviated)))
+        (string-append abbreviated "\"")
+        abbreviated))
+  (define indented (indent-multiline-test-message with-balanced-quotes))
+  indented)
 
 (define-syntax-rule (++! v)
   (set! v (add1 v)))
@@ -193,7 +201,9 @@
 
 (define (failure-msg->string extras)
   (if extras
-      (string-append "message:  " extras "\n")
+      (string-append "message:  "
+                     (indent-multiline-test-message extras)
+                     "\n")
       ""))
 
 (define (test-group-name->string test-group-name)
