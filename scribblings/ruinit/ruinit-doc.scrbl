@@ -53,6 +53,7 @@ checks and communicate results to the testing environment.
 	  test-expr ...)
          #:grammar
          [(test-expr (code:line any-expr)
+	 	     (code:line #:do [any-expr ...])
                      (ignore any-expr ...))
  	  (maybe-name (code:line)
 	              (code:line #:name name))
@@ -66,7 +67,7 @@ checks and communicate results to the testing environment.
   form are considered tests: their results will be
   @seclink["test-outcomes"]{checked for failure}.
 
-  Expressions inside @racket[ignore] forms will be spliced into the
+  Expressions inside @racket[#:do] / @racket[ignore] forms will be spliced into the
   surrounding test block. This allows definitions and other setup code
   to appear inside the test block, without being considered tests.
 

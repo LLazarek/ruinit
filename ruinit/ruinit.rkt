@@ -97,7 +97,7 @@
       {~optional {~and {~datum #:short-circuit} short-kw}}
       {~or* {~seq {~datum #:before} before-e:expr}
             {~seq {~datum #:after} after-e:expr}} ...+
-      e:expr ...)
+      e ...)
      ;; lltodo: ideally want to allow short-circuit interleaved
      ;; anywhere in befores and afters, but can't figure out how
      (define has-short-kw?  (attribute short-kw))
@@ -108,7 +108,7 @@
     [(_
       {~optional {~seq {~datum #:name} name}}
       {~optional {~and {~datum #:short-circuit} short-kw}}
-      e:expr ...)
+      e ...)
      (define has-short-kw?  (attribute short-kw))
      #`(test-begin/internal [{~? name #f} #,has-short-kw?] e ...)]))
 
@@ -117,7 +117,8 @@
     [(_ [name short-circuit?])
      #'(void)]
     [(_ [name short-circuit?]
-        ({~datum ignore} ignored-e ...)
+        {~or ({~datum ignore} ignored-e ...)
+             {~seq #:do [ignored-e ...]}}
         e:expr ...)
      (syntax/loc stx
        (let () ;; ignore-definitions are local
@@ -636,6 +637,11 @@ after2
   (test-begin
     (equal? 1 1)
     (ignore (define a 42))
+    (equal? a a))
+
+  (test-begin
+    (equal? 1 1)
+    #:do [(define a 42)]
     (equal? a a))
 
   ;; Test short-circuiting version
