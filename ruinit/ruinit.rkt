@@ -48,7 +48,9 @@
 (define test-fail? (negate test-success?))
 
 (define (maybe-format msg fmt-args)
-  (and msg (apply format msg fmt-args)))
+  (cond [(false? msg) #f]
+        [(empty? fmt-args) msg]
+        [else (apply format msg fmt-args)]))
 
 (define (test-success [msg #f] . fmt-args)
   (test-result #t (maybe-format msg fmt-args)))
