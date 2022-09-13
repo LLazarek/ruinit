@@ -1,4 +1,4 @@
-#lang racket
+#lang at-exp racket
 
 (provide test-begin
          module+test-begin
@@ -129,7 +129,16 @@
         test:expr e ...)
      (define test-check
        (quasisyntax/loc stx
-         (match test
+         (match (with-handlers ([exn? (λ (exn)
+                                        (define error-str
+                                          (parameterize ([current-error-port (open-output-string)])
+                                            ((error-display-handler) (exn-message exn) exn)
+                                            (get-output-string (current-error-port))))
+                                        (test-result #f @~a{
+                                                            test raised exn:
+                                                            @error-str
+                                                            }))])
+                  test)
            [(test-result #f msg)
             (register-test-failure! #'test msg (syntax->datum #'name))
             #f]
