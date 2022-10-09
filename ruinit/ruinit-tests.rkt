@@ -119,7 +119,7 @@ diff A B: A = <, B = >
 ")
     (test-fail? (test-equal? 2 2.0))
 
-    ;; Taken straight from the docs
+    ;; Taken straight from the docs for `eq?`
     (test-success? (test-eq? 'yes 'yes))
     (test-fail? (test-eq? 'yes 'no))
     (equal? (test-message (test-eq? 'yes 'no))
@@ -129,7 +129,7 @@ diff A B: A = <, B = >
     (test-success? (let ([v (mcons 1 2)])
                      (test-eq? v v)))
     (test-fail? (test-eq? (mcons 1 2) (mcons 1 2)))
-    (test-fail? (test-eq? (integer->char 955) (integer->char 955)))
+    (test-success? (test-eq? (integer->char 955) (integer->char 955)))
     (test-fail? (test-eq? (make-string 3 #\z) (make-string 3 #\z)))
 
     ;; Taken straight from the docs
