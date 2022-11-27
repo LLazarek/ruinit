@@ -400,6 +400,7 @@ after2
   ;; Test that after clauses run even after crash inside the test-begin
   (assert-output-match
    #rx"test!
+.*
 after1
 after2
 "
